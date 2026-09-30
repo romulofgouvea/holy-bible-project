@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir versão x tag
+        run: |
+          TAG=${GITHUB_REF_NAME#v}
+          CONF=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          CARGO=$(grep -m1 '^version = ' src-tauri/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          fail=0
+          for pair in "tauri.conf.json:$CONF" "Cargo.toml:$CARGO"; do
+            name=${pair%%:*}; ver=${pair#*:}
+            if [ "$ver" != "$TAG" ]; then
+              echo "::error::$name ($ver) não bate com a tag ($TAG). Alinhe a versão antes de publicar."
+              fail=1
+            fi
+          done
+          [ "$fail" = 0 ]
+
+  release:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+          - platform: ubuntu-22.04
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependências de sistema (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libclang-dev \
+            perl \
+            xz-utils
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache do Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Instalar dependências do frontend
+        run: npm ci
+
+      - name: Build e publicação (tauri-action)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Bíblia Online ${{ github.ref_name }}"
+          releaseBody: "Build automático gerado pela tag ${{ github.ref_name }}. Baixe o instalador correspondente ao seu sistema abaixo."
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          args: ${{ matrix.args }}

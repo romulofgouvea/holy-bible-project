@@ -74,20 +74,29 @@ export async function exportToPDF(
     </body></html>`;
 
     if (Platform.OS === "web") {
-      const htmlWithScript = htmlDocument.replace(
-        "</body>",
-        "<script>setTimeout(()=>window.print(),500);</script></body>",
-      );
-      const blob = new Blob([htmlWithScript], {
-        type: "text/html;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const frame = document.createElement("iframe");
+      frame.style.position = "fixed";
+      frame.style.right = "0";
+      frame.style.bottom = "0";
+      frame.style.width = "0";
+      frame.style.height = "0";
+      frame.style.border = "0";
+      frame.srcdoc = htmlDocument;
+      frame.onload = () => {
+        const frameWindow = frame.contentWindow;
+        if (!frameWindow) {
+          document.body.removeChild(frame);
+          return;
+        }
+        frameWindow.onafterprint = () => {
+          if (frame.parentNode) document.body.removeChild(frame);
+        };
+        setTimeout(() => {
+          frameWindow.focus();
+          frameWindow.print();
+        }, 300);
+      };
+      document.body.appendChild(frame);
     } else {
       const { uri } = await Print.printToFileAsync({
         html: htmlDocument,
