@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bíblia Online",
     "slug": "holy-bible",
-    "version": "1.4.3",
+    "version": "1.4.5",
     "orientation": "default",
     "platforms": [
       "ios",
@@ -62,7 +62,12 @@
             "extraProguardRules": "-keep,allowobfuscation,allowshrinking class expo.modules.** { *; }\n-keep class com.facebook.hermes.unicode.** { *; }\n-keep class com.facebook.jni.** { *; }\n-keepclassmembers class * { @com.facebook.proguard.annotations.DoNotStrip *; @com.facebook.common.internal.DoNotStrip *; }\n-keep @com.facebook.proguard.annotations.DoNotStrip class *\n-dontwarn com.facebook.react.**\n-dontwarn okio.**"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

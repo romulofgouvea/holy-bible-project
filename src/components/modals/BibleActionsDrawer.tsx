@@ -44,7 +44,7 @@ export function BibleActionsDrawer({
     () =>
       StyleSheet.create({
         backdrop: {
-          ...StyleSheet.absoluteFillObject,
+          ...StyleSheet.absoluteFill,
         },
         drawer: {
           position: "absolute",

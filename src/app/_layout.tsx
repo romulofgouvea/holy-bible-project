@@ -57,7 +57,7 @@ function AppLayout() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#000000" }}>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar style="light" />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
       </View>

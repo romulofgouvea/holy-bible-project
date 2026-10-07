@@ -159,7 +159,9 @@ async function main() {
                   if (!isNaN(verseNum)) {
                     // Pega apenas o texto puro (sem notas de rodapé)
                     let textFragment = '';
-                    $(el).find('span[class*="__content"]').each((_, c) => textFragment += $(c).text());
+                    $(el).find('span[class*="__content"]').each((_, c) => {
+                      textFragment += $(c).text();
+                    });
                     textFragment = textFragment.trim().substring(0, 40);
 
                     if (textFragment) {

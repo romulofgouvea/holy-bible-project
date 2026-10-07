@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
 import { STORAGE_KEYS } from "../constants/storage";
@@ -10,14 +10,32 @@ const NOTIFICATION_IDENTIFIER = "reading-plan-daily-reminder";
 const ANDROID_CHANNEL_ID = "reading-plan";
 const DEFAULT_TIME = "08:00";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+type NotificationsModule = typeof import("expo-notifications");
+
+const IS_EXPO_GO =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let notificationsModule: NotificationsModule | null = null;
+
+function getNotifications(): NotificationsModule | null {
+  if (IS_EXPO_GO) return null;
+  if (notificationsModule) return notificationsModule;
+  try {
+    const loaded: NotificationsModule = require("expo-notifications");
+    loaded.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+    notificationsModule = loaded;
+    return loaded;
+  } catch {
+    return null;
+  }
+}
 
 function parseTime(time: string): { hour: number; minute: number } {
   const [h, m] = time.split(":").map((v) => parseInt(v, 10));
@@ -34,7 +52,8 @@ export function useReadingPlanNotifications() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS !== "android") return;
+    const Notifications = getNotifications();
+    if (!Notifications || Platform.OS !== "android") return;
     Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: "Lembrete de leitura",
       importance: Notifications.AndroidImportance.DEFAULT,
@@ -58,6 +77,11 @@ export function useReadingPlanNotifications() {
 
   const setEnabled = useCallback(async (value: boolean) => {
     if (value) {
+      const Notifications = getNotifications();
+      if (!Notifications) {
+        setEnabledState(false);
+        return;
+      }
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== "granted") {
         setEnabledState(false);
@@ -93,7 +117,8 @@ export function useReadingPlanNotifications() {
   }, [activePlans, getBiblePlanStats]);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    const Notifications = getNotifications();
+    if (!isLoaded || !Notifications) return;
     (async () => {
       await Notifications.cancelScheduledNotificationAsync(
         NOTIFICATION_IDENTIFIER,
@@ -121,6 +146,7 @@ export function useReadingPlanNotifications() {
 
   return {
     isLoaded,
+    isSupported: !IS_EXPO_GO,
     enabled,
     time,
     setEnabled,

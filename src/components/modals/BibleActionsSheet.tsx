@@ -38,7 +38,7 @@ export function BibleActionsSheet({ visible, onClose, items, title }: Props) {
     () =>
       StyleSheet.create({
         backdrop: {
-          ...StyleSheet.absoluteFillObject,
+          ...StyleSheet.absoluteFill,
         },
         sheetContainer: {
           flex: 1,

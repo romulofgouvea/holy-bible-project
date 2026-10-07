@@ -187,8 +187,15 @@ export const BibleAudioModal = forwardRef<
     }
   };
 
+  const hasFinished =
+    !!status.didJustFinish ||
+    (status.isLoaded &&
+      !status.playing &&
+      duration > 0 &&
+      currentTime >= duration - 0.1);
+
   useEffect(() => {
-    if (!status.didJustFinish || !isPlayingRef.current) return;
+    if (!hasFinished || !isPlayingRef.current) return;
 
     const nextIndex = currentVerseIndex + 1;
     if (nextIndex < audioUrls.length) {
@@ -203,7 +210,7 @@ export const BibleAudioModal = forwardRef<
     setIsPlaying(false);
     setCurrentVerseIndex(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status.didJustFinish]);
+  }, [hasFinished]);
 
   const loadAudio = async () => {
     setIsLoading(true);

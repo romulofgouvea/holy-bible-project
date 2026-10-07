@@ -210,7 +210,9 @@ function extractVerses(
     let fragment = "";
     clone
       .find('span[class*="__content"]')
-      .each((_, c) => (fragment += $(c).text()));
+      .each((_, c) => {
+        fragment += $(c).text();
+      });
     fragment = fragment.replace(/\s+/g, " ");
 
     if (!fragment.trim()) return;

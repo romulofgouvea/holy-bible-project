@@ -5,6 +5,21 @@ export type ChangelogItem = {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "1.4.5",
+    highlights: [
+      "Correção na reprodução em áudio dos capítulos, que não tocavam em alguns dispositivos",
+      "Ajustes gerais de estabilidade e desempenho",
+    ],
+  },
+  {
+    version: "1.4.4",
+    highlights: [
+      "Versão para computador disponível para Windows, macOS e Linux",
+      "Correção na exportação de estudos em PDF na versão para computador",
+      "Ajustes gerais de estabilidade e desempenho",
+    ],
+  },
+  {
     version: "1.4.2",
     highlights: [
       "Nova aba de marcações por cor na tela de Anotações, com filtro por cor",

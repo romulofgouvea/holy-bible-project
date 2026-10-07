@@ -44,7 +44,7 @@ export function BibleDrawerMenu(props: DrawerMenuProps) {
     () =>
       StyleSheet.create({
         backdrop: {
-          ...StyleSheet.absoluteFillObject,
+          ...StyleSheet.absoluteFill,
         },
         drawer: {
           position: "absolute",
