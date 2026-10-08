@@ -25,6 +25,7 @@ import { BibleIcon } from "../components/BibleIcon";
 import { BibleSkeleton } from "../components/BibleSkeleton";
 import { BibleText } from "../components/BibleText";
 import { BibleToast } from "../components/BibleToast";
+import { BibleLocationBar } from "../components/BibleLocationBar";
 import { BibleTopBar } from "../components/BibleTopBar";
 import { BibleVerseReader } from "../components/BibleVerseReader";
 import {
@@ -85,24 +86,6 @@ export default function BibleScreen() {
     readerTheme === "sepia" ? readerColors.primary : colors.primary;
 
   const [isExitConfirmVisible, setIsExitConfirmVisible] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        if (!router.canGoBack()) {
-          setIsExitConfirmVisible(true);
-          return true;
-        }
-        return false;
-      };
-
-      const subscription = BackHandler.addEventListener(
-        "hardwareBackPress",
-        onBackPress,
-      );
-      return () => subscription.remove();
-    }, [router]),
-  );
 
   const secondSectionListRef = useRef<any>(null);
 
@@ -503,6 +486,58 @@ export default function BibleScreen() {
     [setBlinkingVerse, isSplitScreen, splitOrientation],
   );
 
+  const positionStack = useRef<
+    { version: string; book: string; chapter: number; verse: number }[]
+  >([]);
+
+  const jumpTo = useCallback(
+    (next: {
+      version: string;
+      book: string;
+      chapter: number;
+      verse: number;
+    }) => {
+      positionStack.current.push({
+        version,
+        book,
+        chapter,
+        verse: topVisibleVerseRef.current,
+      });
+      navigateTo(next);
+      setTimeout(() => scrollToVerse(next.verse, next.chapter), 300);
+    },
+    [version, book, chapter, navigateTo, scrollToVerse],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        const previous = positionStack.current.pop();
+        if (previous) {
+          setIsActionSheetVisible(false);
+          setSelectedVerses([]);
+          navigateTo(previous);
+          setTimeout(
+            () => scrollToVerse(previous.verse, previous.chapter),
+            300,
+          );
+          return true;
+        }
+        if (!router.canGoBack()) {
+          setIsExitConfirmVisible(true);
+          return true;
+        }
+        return false;
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, [router, navigateTo, scrollToVerse]),
+  );
+
   useEffect(() => {
     if (!autoScroll) return;
     if (playingVerse === null) return;
@@ -649,55 +684,12 @@ export default function BibleScreen() {
       </Animated.View>
 
       <BibleTopBar
-        bookName={currentBook.name}
-        currentChapter={chapter}
-        onOpenBook={() => {
-          setIsActionSheetVisible(false);
-          setSelectedVerses([]);
-          openModal({
-            initialStep: "book",
-            onSelect: (s) => {
-              const nextV = s.version || version;
-              const nextB = s.book?.abbrev || book;
-              const nextC = s.chapter || chapter;
-              const nextVe = s.verse || verse;
-              navigateTo({
-                version: nextV,
-                book: nextB,
-                chapter: nextC,
-                verse: nextVe,
-              });
-              setTimeout(() => scrollToVerse(nextVe, nextC), 300);
-            },
-          });
-        }}
-        onOpenChapter={() => {
-          setIsActionSheetVisible(false);
-          setSelectedVerses([]);
-          openModal({
-            initialStep: "chapter",
-            onSelect: (s) => {
-              const nextV = s.version || version;
-              const nextB = book;
-              const nextC = s.chapter || chapter;
-              const nextVe = s.verse || 1;
-              navigateTo({
-                version: nextV,
-                book: nextB,
-                chapter: nextC,
-                verse: nextVe,
-              });
-              setTimeout(() => scrollToVerse(nextVe, nextC), 300);
-            },
-          });
-        }}
         onPrevChapter={() => handleNavigateChapter(-1)}
         onNextChapter={() => handleNavigateChapter(1)}
         onOpenMenu={() => setIsDrawerVisible(true)}
         onOpenSettings={() => setIsSettingsModalVisible(true)}
         onOpenSearch={() => router.push("/search?from=bible")}
         onOpenHistory={() => setIsHistoryModalVisible(true)}
-        onOpenAudio={() => setIsAudioModalVisible(true)}
         isSplitScreen={isSplitScreen}
         onToggleCompare={() => {
           if (isSplitScreen) {
@@ -719,19 +711,61 @@ export default function BibleScreen() {
         }}
       />
 
+      <BibleLocationBar
+        version={version}
+        isVersionVisible={!isSplitScreen}
+        bookName={currentBook.name}
+        chapter={chapter}
+        onOpenVersion={() => {
+          setIsActionSheetVisible(false);
+          setSelectedVerses([]);
+          openModal({ initialStep: "version" });
+        }}
+        onOpenBook={() => {
+          setIsActionSheetVisible(false);
+          setSelectedVerses([]);
+          openModal({
+            initialStep: "book",
+            onSelect: (s) => {
+              jumpTo({
+                version: s.version || version,
+                book: s.book?.abbrev || book,
+                chapter: s.chapter || chapter,
+                verse: s.verse || verse,
+              });
+            },
+          });
+        }}
+        onOpenChapter={() => {
+          setIsActionSheetVisible(false);
+          setSelectedVerses([]);
+          openModal({
+            initialStep: "chapter",
+            onSelect: (s) => {
+              jumpTo({
+                version: s.version || version,
+                book,
+                chapter: s.chapter || chapter,
+                verse: s.verse || 1,
+              });
+            },
+          });
+        }}
+        onOpenAudio={() => setIsAudioModalVisible(true)}
+      />
+
       <BibleHistoryModal
         visible={isHistoryModalVisible}
         onClose={() => setIsHistoryModalVisible(false)}
         onSelect={(item) => {
           setIsActionSheetVisible(false);
           setSelectedVerses([]);
-          navigateTo({
+          jumpTo({
             version: item.version,
             book: item.bookAbbrev,
             chapter: item.chapter,
             verse: item.verse,
           });
-          setTimeout(() => scrollToVerse(item.verse, item.chapter), 300);
         }}
       />
 
@@ -854,7 +888,7 @@ export default function BibleScreen() {
                         }}
                       >
                         <MaterialIcons
-                          name="vertical-split"
+                          name="horizontal-split"
                           color={primaryColor}
                           size={ms(DESIGN.icon.xs)}
                         />
@@ -1059,7 +1093,7 @@ export default function BibleScreen() {
                         }}
                       >
                         <MaterialIcons
-                          name="horizontal-split"
+                          name="vertical-split"
                           color={primaryColor}
                           size={ms(DESIGN.icon.xs)}
                         />
@@ -1195,18 +1229,6 @@ export default function BibleScreen() {
             )
           ) : (
             <View style={styles.splitPane}>
-              {renderVersionBadge(version, () =>
-                openModal({
-                  initialStep: "version",
-                  initialVersion: version,
-                  onSelect: (s) => {
-                    if (s.version) {
-                      navigateTo({ version: s.version });
-                      setTimeout(() => scrollToVerse(verse, chapter), 600);
-                    }
-                  },
-                }),
-              )}
               <BibleVerseReader
                 listRef={sectionListRef}
                 sections={sectionData}
