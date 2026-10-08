@@ -28,7 +28,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   [ROUTES.SEARCH]: "Pesquisar",
   [ROUTES.NOTES]: "Anotações",
   [ROUTES.CONFIGURATION]: "Configurações",
-  [ROUTES.TRASH]: "Lixeira de Estudos",
+  [ROUTES.TRASH]: "Gerenciar estudos excluídos",
   [ROUTES.DOWNLOADS]: "Downloads",
   [ROUTES.READING_PLAN]: "Plano de Leitura",
   APPEARANCE: "Aparência (Aa)",

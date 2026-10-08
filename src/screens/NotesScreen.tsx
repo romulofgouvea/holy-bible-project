@@ -7,10 +7,6 @@ import { BibleHeader } from "../components/BibleHeader";
 import { BibleIcon } from "../components/BibleIcon";
 import { BiblePageEmpty } from "../components/BiblePageEmpty";
 import { BibleText } from "../components/BibleText";
-import {
-  BibleActionItem,
-  BibleActionsSheet,
-} from "../components/modals/BibleActionsSheet";
 import { BibleConfirmModal } from "../components/modals/BibleConfirmModal";
 import { BibleNoteModal } from "../components/modals/BibleNoteModal";
 import { DonateModal } from "../components/modals/DonateModal";
@@ -54,14 +50,11 @@ export default function NotesScreen() {
   const [colorFilter, setColorFilter] = useState<string | null>(null);
 
   const [activeNote, setActiveNote] = useState<VerseNote | null>(null);
-  const [isActionsVisible, setIsActionsVisible] = useState(false);
   const [isConfirmDeleteVisible, setIsConfirmDeleteVisible] = useState(false);
 
   const [activeHighlight, setActiveHighlight] = useState<HighlightGroup | null>(
     null,
   );
-  const [isHighlightActionsVisible, setIsHighlightActionsVisible] =
-    useState(false);
   const [isConfirmRemoveHighlight, setIsConfirmRemoveHighlight] =
     useState(false);
 
@@ -239,10 +232,14 @@ export default function NotesScreen() {
           lineHeight: ms(DESIGN.fontSize.xl),
           marginTop: ms(DESIGN.spacing.sm),
         },
-        moreButton: {
-          padding: ms(DESIGN.spacing.xs),
+        actionsRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: ms(DESIGN.spacing.xs),
           marginRight: ms(-DESIGN.spacing.xs),
-          marginTop: ms(-DESIGN.spacing.xs),
+        },
+        actionButton: {
+          padding: ms(DESIGN.spacing.xs),
         },
         tabEmpty: {
           alignItems: "center",
@@ -280,79 +277,35 @@ export default function NotesScreen() {
     setNoteModalVisible(true);
   };
 
-  const handleOpenActions = (item: VerseNote) => {
+  const handleRequestDeleteNote = (item: VerseNote) => {
     setActiveNote(item);
-    setIsActionsVisible(true);
+    setIsConfirmDeleteVisible(true);
   };
 
-  const handleOpenHighlightActions = (group: HighlightGroup) => {
+  const handleRequestRemoveHighlight = (group: HighlightGroup) => {
     setActiveHighlight(group);
-    setIsHighlightActionsVisible(true);
+    setIsConfirmRemoveHighlight(true);
   };
 
-  const actionItems: BibleActionItem[] = useMemo(() => {
-    if (!activeNote) return [];
-    return [
-      {
-        icon: "book-open",
-        label: "Ler",
-        color: colors.onSurface,
-        iconColor: colors.primary,
-        onPress: () => {
-          if (activeNote?.selectedVerses.length) {
-            const firstVerse = activeNote.selectedVerses[0];
-            navigateTo({
-              book: firstVerse.bookAbbrev,
-              chapter: firstVerse.chapter,
-              verse: firstVerse.verse,
-            });
-            router.navigate(ROUTES.BIBLE as any);
-          }
-        },
-      },
-      {
-        icon: "edit-2",
-        label: "Editar",
-        color: colors.onSurface,
-        iconColor: colors.primary,
-        onPress: () => handleEditNote(activeNote),
-      },
-      {
-        icon: "trash-2",
-        label: "Excluir",
-        color: colors.error,
-        iconColor: colors.error,
-        onPress: () => setIsConfirmDeleteVisible(true),
-      },
-    ];
-  }, [activeNote, colors, navigateTo, router]);
+  const handleReadNote = (item: VerseNote) => {
+    if (!item.selectedVerses.length) return;
+    const firstVerse = item.selectedVerses[0];
+    navigateTo({
+      book: firstVerse.bookAbbrev,
+      chapter: firstVerse.chapter,
+      verse: firstVerse.verse,
+    });
+    router.navigate(ROUTES.BIBLE as any);
+  };
 
-  const highlightActionItems: BibleActionItem[] = useMemo(() => {
-    if (!activeHighlight) return [];
-    return [
-      {
-        icon: "book-open",
-        label: "Ler",
-        color: colors.onSurface,
-        iconColor: colors.primary,
-        onPress: () => {
-          navigateTo({
-            book: activeHighlight.abbrev,
-            chapter: activeHighlight.chapter,
-            verse: activeHighlight.verses[0],
-          });
-          router.navigate(ROUTES.BIBLE as any);
-        },
-      },
-      {
-        icon: "trash-2",
-        label: "Remover marcação",
-        color: colors.error,
-        iconColor: colors.error,
-        onPress: () => setIsConfirmRemoveHighlight(true),
-      },
-    ];
-  }, [activeHighlight, colors, navigateTo, router]);
+  const handleReadHighlight = (group: HighlightGroup) => {
+    navigateTo({
+      book: group.abbrev,
+      chapter: group.chapter,
+      verse: group.verses[0],
+    });
+    router.navigate(ROUTES.BIBLE as any);
+  };
 
   const renderNote = ({ item }: { item: VerseNote }) => {
     if (!item.selectedVerses || item.selectedVerses.length === 0) {
@@ -374,7 +327,11 @@ export default function NotesScreen() {
       "";
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.8}
+        onPress={() => handleReadNote(item)}
+      >
         <View style={styles.cardHeader}>
           <View
             style={{
@@ -397,16 +354,28 @@ export default function NotesScreen() {
               {dateStr}
             </BibleText>
           </View>
-          <TouchableOpacity
-            style={styles.moreButton}
-            onPress={() => handleOpenActions(item)}
-          >
-            <BibleIcon
-              name="more-vertical"
-              color={colors.textMuted}
-              size={ms(DESIGN.icon.xs)}
-            />
-          </TouchableOpacity>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleEditNote(item)}
+            >
+              <BibleIcon
+                name="edit-2"
+                color={colors.primary}
+                size={ms(DESIGN.icon.sm)}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleRequestDeleteNote(item)}
+            >
+              <BibleIcon
+                name="trash-2"
+                color={colors.error}
+                size={ms(DESIGN.icon.sm)}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {firstVerseText ? (
@@ -416,7 +385,7 @@ export default function NotesScreen() {
         ) : null}
 
         <BibleText style={styles.noteText}>{item.text}</BibleText>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -425,8 +394,10 @@ export default function NotesScreen() {
     const hex = getColorHex(item.color);
 
     return (
-      <View
+      <TouchableOpacity
         style={[styles.card, styles.highlightCard, { borderLeftColor: hex }]}
+        activeOpacity={0.8}
+        onPress={() => handleReadHighlight(item)}
       >
         <View style={styles.cardHeader}>
           <View
@@ -443,16 +414,18 @@ export default function NotesScreen() {
               </BibleText>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.moreButton}
-            onPress={() => handleOpenHighlightActions(item)}
-          >
-            <BibleIcon
-              name="more-vertical"
-              color={colors.textMuted}
-              size={ms(DESIGN.icon.xs)}
-            />
-          </TouchableOpacity>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleRequestRemoveHighlight(item)}
+            >
+              <BibleIcon
+                name="trash-2"
+                color={colors.error}
+                size={ms(DESIGN.icon.sm)}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {item.text ? (
@@ -463,7 +436,7 @@ export default function NotesScreen() {
             {item.text}
           </BibleText>
         ) : null}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -677,20 +650,6 @@ export default function NotesScreen() {
         visible={noteModalVisible}
         onClose={() => setNoteModalVisible(false)}
         selectedVerses={selectedNoteVerses}
-      />
-
-      <BibleActionsSheet
-        visible={isActionsVisible}
-        onClose={() => setIsActionsVisible(false)}
-        items={actionItems}
-        title="Anotação"
-      />
-
-      <BibleActionsSheet
-        visible={isHighlightActionsVisible}
-        onClose={() => setIsHighlightActionsVisible(false)}
-        items={highlightActionItems}
-        title="Marcação"
       />
 
       <BibleConfirmModal

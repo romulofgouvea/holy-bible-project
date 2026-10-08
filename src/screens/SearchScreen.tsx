@@ -1,4 +1,3 @@
-import { BibleCountPill } from "@/components/BibleCountPill";
 import { BibleDivider } from "@/components/BibleDivider";
 import { BibleIcon } from "@/components/BibleIcon";
 import { BiblePageModal } from "@/components/modals/BiblePageModal";
@@ -288,15 +287,6 @@ export default function SearchScreen() {
         },
         activityIndicator: {
           marginRight: ms(DESIGN.spacing.xs),
-        },
-        filterBtn: {
-          width: ms(44),
-          height: ms(44),
-          alignItems: "center",
-          justifyContent: "center",
-          borderWidth: 1,
-          borderColor: colors.primary + "20",
-          borderRadius: ms(DESIGN.borderRadius.md),
         },
         resultsInfoContainer: {
           flexDirection: "row",
@@ -796,8 +786,6 @@ export default function SearchScreen() {
     return <BibleSkeleton />;
   }
 
-  const isFilterEnabled = query.trim().length >= 2;
-
   return (
     <View
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -858,19 +846,6 @@ export default function SearchScreen() {
             ) : null}
           </View>
         }
-        rightContent={
-          <TouchableOpacity
-            style={[styles.filterBtn, !isFilterEnabled && { opacity: 0.3 }]}
-            onPress={() => {
-              Keyboard.dismiss();
-              setIsFilterModalVisible(true);
-            }}
-            disabled={!isFilterEnabled}
-            activeOpacity={0.7}
-          >
-            <BibleIcon name="filter" color={colors.onPrimary} />
-          </TouchableOpacity>
-        }
       />
 
       {(showResults || showNoResults) && (
@@ -883,7 +858,14 @@ export default function SearchScreen() {
             },
           ]}
         >
-          <View style={styles.appliedFilterLabel}>
+          <TouchableOpacity
+            style={styles.appliedFilterLabel}
+            onPress={() => {
+              Keyboard.dismiss();
+              setIsFilterModalVisible(true);
+            }}
+            activeOpacity={0.7}
+          >
             <BibleText
               style={[
                 styles.appliedFilterText,
@@ -908,12 +890,7 @@ export default function SearchScreen() {
                 {filterLabelText.toUpperCase()}
               </BibleText>
             </View>
-          </View>
-          <BibleCountPill
-            count={results.length}
-            label="resultado"
-            labelPlural="resultados"
-          />
+          </TouchableOpacity>
         </View>
       )}
 

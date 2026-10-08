@@ -42,6 +42,13 @@ type ListItem =
       titles?: VerseTitle[];
     }
   | {
+      type: "paragraph";
+      chapter: number;
+      verse: number;
+      verses: VerseItem[];
+      id: string;
+    }
+  | {
       type: "footer";
       versionInfo: any;
       copyright: string;
@@ -73,6 +80,147 @@ type VerseReaderProps = {
   splitMode?: boolean;
 };
 
+const renderVerseContent = (
+  v: VerseItem,
+  shouldShowTitles: boolean,
+  primaryColor: string,
+  fontSizeMultiplier: number,
+  ms: any,
+  DESIGN: any,
+) => {
+  const midTitles =
+    shouldShowTitles && v.titles
+      ? v.titles
+          .filter((t: VerseTitle) => t.positionIndex > 0)
+          .sort((a, b) => a.positionIndex - b.positionIndex)
+      : [];
+  if (midTitles.length === 0) return v.text;
+
+  const elements: React.ReactNode[] = [];
+  let currentTextIndex = 0;
+  midTitles.forEach((t, index) => {
+    elements.push(
+      <React.Fragment key={`text-${index}`}>
+        {v.text.substring(currentTextIndex, t.positionIndex)}
+      </React.Fragment>,
+    );
+    currentTextIndex = t.positionIndex;
+    elements.push(
+      <BibleText
+        key={`title-${index}`}
+        style={{
+          color: primaryColor,
+          fontSize: ms(DESIGN.fontSize.xxxl * fontSizeMultiplier),
+          fontWeight: t.type === "speech" ? "500" : "700",
+          fontStyle: t.type === "speech" ? "italic" : "normal",
+        }}
+      >
+        {"\n\n"}
+        {t.title}
+        {"\n"}
+      </BibleText>,
+    );
+  });
+  if (currentTextIndex < v.text.length) {
+    elements.push(
+      <React.Fragment key="text-end">
+        {v.text.substring(currentTextIndex)}
+      </React.Fragment>,
+    );
+  }
+  return elements;
+};
+
+const ParagraphRow = React.memo(
+  ({
+    entries,
+    primaryColor,
+    readerColors,
+    fontSizeMultiplier,
+    textAlign,
+    shouldShowTitles,
+    ms,
+    DESIGN,
+    styles,
+    onVersePress,
+    onVerseLongPress,
+  }: any) => {
+    return (
+      <View style={styles.paragraphRow}>
+        <BibleText
+          variant="reading"
+          style={[
+            styles.verseText,
+            {
+              fontSize: ms(DESIGN.fontSize.xxl * fontSizeMultiplier),
+              lineHeight: ms(
+                DESIGN.fontSize.xxl * fontSizeMultiplier * DESIGN.lineHeight.md,
+              ),
+              color: readerColors.onBackground,
+              textAlign: textAlign as any,
+            },
+          ]}
+        >
+          {"    "}
+          {entries.map((e: any, idx: number) => (
+            <BibleText
+              key={`${e.verse.chapter}-${e.verse.verse}`}
+              onPress={() => {
+                impactLight();
+                onVersePress(e.verse);
+              }}
+              onLongPress={() => {
+                if (!onVerseLongPress) return;
+                impactMedium();
+                onVerseLongPress(e.verse);
+              }}
+              style={{
+                backgroundColor: e.isBlinking
+                  ? `${primaryColor}20`
+                  : e.isHighlighted
+                    ? e.highlightColorHex
+                    : e.isSelected || e.isPlaying
+                      ? `${primaryColor}20`
+                      : "transparent",
+              }}
+            >
+              {idx > 0 ? " " : ""}
+              {renderVerseContent(
+                e.verse,
+                shouldShowTitles,
+                primaryColor,
+                fontSizeMultiplier,
+                ms,
+                DESIGN,
+              )}
+              {e.hasNote && (
+                <BibleText style={{ color: primaryColor, opacity: 0.8 }}>
+                  {" "}
+                  <BibleIcon
+                    name="edit-3"
+                    size={ms(DESIGN.fontSize.md * fontSizeMultiplier)}
+                    color={primaryColor}
+                  />
+                </BibleText>
+              )}
+            </BibleText>
+          ))}
+        </BibleText>
+      </View>
+    );
+  },
+  (prev, next) =>
+    prev.entries.length === next.entries.length &&
+    prev.entries[0]?.verse === next.entries[0]?.verse &&
+    prev.metaKey === next.metaKey &&
+    prev.fontSizeMultiplier === next.fontSizeMultiplier &&
+    prev.textAlign === next.textAlign &&
+    prev.shouldShowTitles === next.shouldShowTitles &&
+    prev.readerColors.background === next.readerColors.background &&
+    prev.primaryColor === next.primaryColor &&
+    prev.styles === next.styles,
+);
+
 const VerseRow = React.memo(
   ({
     item,
@@ -87,6 +235,7 @@ const VerseRow = React.memo(
     fontSizeMultiplier,
     textAlign,
     shouldShowTitles,
+    shouldShowVerseNumbers,
     ms,
     DESIGN,
     styles,
@@ -94,6 +243,7 @@ const VerseRow = React.memo(
     onVerseLongPress,
     splitMode,
   }: any) => {
+    const textGap = shouldShowVerseNumbers ? "  " : "";
     const blinkAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -142,7 +292,7 @@ const VerseRow = React.memo(
       if (midVerseTitles.length === 0) {
         return (
           <React.Fragment>
-            {"\u00A0\u00A0"}
+            {textGap}
             {item.text}
           </React.Fragment>
         );
@@ -162,7 +312,7 @@ const VerseRow = React.memo(
         );
         elements.push(
           <React.Fragment key={`text-${index}`}>
-            {index === 0 ? "\u00A0\u00A0" : ""}
+            {index === 0 ? textGap : ""}
             {textBefore}
           </React.Fragment>,
         );
@@ -173,6 +323,7 @@ const VerseRow = React.memo(
             key={`title-${index}`}
             style={{
               color: primaryColor,
+              fontSize: ms(DESIGN.fontSize.xxxl * fontSizeMultiplier),
               fontWeight: t.type === "speech" ? "500" : "700",
               fontStyle: t.type === "speech" ? "italic" : "normal",
             }}
@@ -206,7 +357,7 @@ const VerseRow = React.memo(
                   styles.leadingTitleText,
                   {
                     color: primaryColor,
-                    fontSize: ms(DESIGN.fontSize.xl * fontSizeMultiplier),
+                    fontSize: ms(DESIGN.fontSize.xxxl * fontSizeMultiplier),
                     fontWeight: t.type === "speech" ? "500" : "700",
                     fontStyle: t.type === "speech" ? "italic" : "normal",
                   },
@@ -252,15 +403,17 @@ const VerseRow = React.memo(
                 },
               ]}
             >
-              <BibleText
-                style={{
-                  color: primaryColor,
-                  fontWeight: "700",
-                  fontSize: ms(DESIGN.fontSize.lg * fontSizeMultiplier),
-                }}
-              >
-                {item.verse}
-              </BibleText>
+              {shouldShowVerseNumbers && (
+                <BibleText
+                  style={{
+                    color: primaryColor,
+                    fontWeight: "700",
+                    fontSize: ms(DESIGN.fontSize.lg * fontSizeMultiplier),
+                  }}
+                >
+                  {item.verse}
+                </BibleText>
+              )}
               {renderMidVerseTitlesAndText()}
               {hasNote && (
                 <BibleText style={{ color: primaryColor, opacity: 0.8 }}>
@@ -289,6 +442,7 @@ const VerseRow = React.memo(
       prevProps.fontSizeMultiplier === nextProps.fontSizeMultiplier &&
       prevProps.textAlign === nextProps.textAlign &&
       prevProps.shouldShowTitles === nextProps.shouldShowTitles &&
+      prevProps.shouldShowVerseNumbers === nextProps.shouldShowVerseNumbers &&
       prevProps.readerColors.background === nextProps.readerColors.background &&
       prevProps.primaryColor === nextProps.primaryColor &&
       prevProps.styles === nextProps.styles &&
@@ -327,6 +481,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     readerColors,
     readerTheme,
     shouldShowTitles,
+    shouldShowVerseNumbers,
   } = useReaderSettings();
 
   const flashListRef = useRef<any>(null);
@@ -374,6 +529,10 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
           borderLeftWidth: ms(DESIGN.spacing.xs),
           borderLeftColor: "transparent",
         },
+        paragraphRow: {
+          paddingVertical: ms(DESIGN.spacing.md),
+          paddingHorizontal: ms(DESIGN.spacing.lg),
+        },
         verseText: {
           flexWrap: "wrap",
           textAlignVertical: "top",
@@ -411,10 +570,26 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
 
   const flatData = useMemo(() => {
     const data: ListItem[] = [];
+    const isContinuous = !splitMode && !shouldShowVerseNumbers;
     sections.forEach((sec) => {
       data.push({ type: "header", title: sec.title });
+      let paragraph: VerseItem[] = [];
+      const flushParagraph = () => {
+        if (paragraph.length === 0) return;
+        data.push({
+          type: "paragraph",
+          chapter: paragraph[0].chapter,
+          verse: paragraph[0].verse,
+          verses: paragraph,
+          id: `paragraph-${paragraph[0].chapter}-${paragraph[0].verse}`,
+        });
+        paragraph = [];
+      };
       sec.data.forEach((v) => {
         if (!splitMode && shouldShowTitles && v.titles && v.titles.length > 0) {
+          if (isContinuous && v.titles.some((t) => t.positionIndex === 0)) {
+            flushParagraph();
+          }
           const zeroIndexTitles = v.titles.filter(
             (t: VerseTitle) => t.positionIndex === 0,
           );
@@ -429,8 +604,13 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
             });
           });
         }
-        data.push({ type: "verse", ...v });
+        if (isContinuous) {
+          paragraph.push(v);
+        } else {
+          data.push({ type: "verse", ...v });
+        }
       });
+      flushParagraph();
       const versionInfo = ALIASES.find((v) => v.sigla === version);
       const copyright = (versionInfo as any)?.copyright;
       if (copyright) {
@@ -438,7 +618,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
       }
     });
     return data;
-  }, [sections, version, splitMode, shouldShowTitles]);
+  }, [sections, version, splitMode, shouldShowTitles, shouldShowVerseNumbers]);
 
   useImperativeHandle(
     listRef,
@@ -448,7 +628,10 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
         options?: { animated?: boolean },
       ) => {
         const index = flatData.findIndex(
-          (item) => item.type === "verse" && item.verse === targetVerse,
+          (item) =>
+            (item.type === "verse" && item.verse === targetVerse) ||
+            (item.type === "paragraph" &&
+              item.verses.some((v) => v.verse === targetVerse)),
         );
         if (index !== -1 && flashListRef.current) {
           flashListRef.current.scrollToIndex({
@@ -472,7 +655,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
   const primaryColor =
     readerTheme === "sepia" ? readerColors.primary : colors.primary;
 
-  const getVerseMeta = (item: Extract<ListItem, { type: "verse" }>) => {
+  const getVerseMeta = (item: VerseItem) => {
     const isBlinking = blinkingVerse === `${item.chapter}-${item.verse}`;
     const isPlaying = playingVerseKey === `${item.chapter}-${item.verse}`;
     const hasNote = !!notes[`${bookAbbrev}-${item.chapter}-${item.verse}`];
@@ -506,7 +689,8 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
         getItemType={(item) => item.type}
         keyExtractor={(item, idx) => {
           if (item.type === "header") return `header-${item.title}`;
-          if (item.type === "sectionTitle") return item.id;
+          if (item.type === "sectionTitle" || item.type === "paragraph")
+            return item.id;
           if (item.type === "footer")
             return `footer-${item.versionInfo?.sigla}-${idx}`;
           return `verse-${version}-${item.chapter}-${item.verse}`;
@@ -527,7 +711,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
                       fontSize: ms(
                         DESIGN.fontSize.display * 0.875 * fontSizeMultiplier,
                       ),
-                      color: readerColors.onBackground,
+                      color: primaryColor,
                     },
                   ]}
                 >
@@ -544,7 +728,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
                     styles.sectionTitle,
                     {
                       color: primaryColor,
-                      fontSize: ms(DESIGN.fontSize.xl * fontSizeMultiplier),
+                      fontSize: ms(DESIGN.fontSize.xxxl * fontSizeMultiplier),
                       fontWeight: item.titleType === "speech" ? "500" : "700",
                       fontStyle:
                         item.titleType === "speech" ? "italic" : "normal",
@@ -591,6 +775,43 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
             );
           }
 
+          if (item.type === "paragraph") {
+            const entries = item.verses.map((v) => {
+              const m = getVerseMeta(v);
+              return {
+                verse: v,
+                isBlinking: m.isBlinking,
+                isPlaying: m.isPlaying,
+                isSelected: !!m.isSelected,
+                isHighlighted: !!m.highlightColorId,
+                highlightColorHex: m.highlightColorHex,
+                hasNote: m.hasNote,
+              };
+            });
+            const metaKey = entries
+              .map(
+                (e) =>
+                  `${+e.isBlinking}${+e.isPlaying}${+e.isSelected}${+e.hasNote}${e.isHighlighted ? e.highlightColorHex : "-"}`,
+              )
+              .join("|");
+            return (
+              <ParagraphRow
+                entries={entries}
+                metaKey={metaKey}
+                primaryColor={primaryColor}
+                readerColors={readerColors}
+                fontSizeMultiplier={fontSizeMultiplier}
+                textAlign={textAlign}
+                shouldShowTitles={shouldShowTitles}
+                ms={ms}
+                DESIGN={DESIGN}
+                styles={styles}
+                onVersePress={onVersePress}
+                onVerseLongPress={onVerseLongPress}
+              />
+            );
+          }
+
           const meta = getVerseMeta(item);
 
           return (
@@ -607,6 +828,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
               fontSizeMultiplier={fontSizeMultiplier}
               textAlign={textAlign}
               shouldShowTitles={shouldShowTitles}
+              shouldShowVerseNumbers={shouldShowVerseNumbers}
               ms={ms}
               DESIGN={DESIGN}
               styles={styles}

@@ -169,8 +169,7 @@ export default function ConfigurationScreen() {
     [ms, colors, DESIGN],
   );
 
-  const { setReaderTheme, shouldShowTitles, setShouldShowTitles } =
-    useReaderSettings();
+  const { setReaderTheme } = useReaderSettings();
   const { clearHistory } = useHistory();
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const { importBulk, reloadFromStorage } = useStudies();
@@ -492,21 +491,6 @@ export default function ConfigurationScreen() {
             style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
           />
           <SettingsItem
-            label="Vibração"
-            description="Feedback tátil ao tocar nos itens"
-            icon="target"
-            onPress={() => toggleHaptics()}
-            rightElement={
-              <BibleSwitch
-                value={hapticsEnabled}
-                onValueChange={toggleHaptics}
-              />
-            }
-          />
-          <BibleDivider
-            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
-          />
-          <SettingsItem
             label="Cor do Aplicativo"
             description="Escolha a paleta de cores do app"
             icon="layers"
@@ -550,7 +534,7 @@ export default function ConfigurationScreen() {
             color: colors.textMuted,
           }}
         >
-          CONFIGURAÇÕES DA BÍBLIA
+          CONFIGURAÇÕES GERAIS
         </BibleText>
         <View
           style={[
@@ -563,20 +547,14 @@ export default function ConfigurationScreen() {
           ]}
         >
           <SettingsItem
-            label="Títulos dos Textos"
-            description="Exibir títulos e seções nos capítulos bíblicos"
-            icon="type"
-            onPress={() => {
-              impactLight();
-              setShouldShowTitles(!shouldShowTitles);
-            }}
+            label="Vibração"
+            description="Feedback tátil ao tocar nos itens"
+            icon="target"
+            onPress={() => toggleHaptics()}
             rightElement={
               <BibleSwitch
-                value={shouldShowTitles}
-                onValueChange={(val) => {
-                  impactLight();
-                  setShouldShowTitles(val);
-                }}
+                value={hapticsEnabled}
+                onValueChange={toggleHaptics}
               />
             }
           />
@@ -654,15 +632,6 @@ export default function ConfigurationScreen() {
               )}
             </View>
           )}
-          <BibleDivider
-            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
-          />
-          <SettingsItem
-            label="Downloads de Áudio"
-            description="Baixe capítulos para ouvir offline"
-            icon="download"
-            onPress={() => router.push(ROUTES.DOWNLOADS as any)}
-          />
         </View>
 
         <BibleText
@@ -675,7 +644,7 @@ export default function ConfigurationScreen() {
             color: colors.textMuted,
           }}
         >
-          GERENCIAMENTO
+          CONFIGURAÇÕES DA BÍBLIA
         </BibleText>
         <View
           style={[
@@ -688,37 +657,19 @@ export default function ConfigurationScreen() {
           ]}
         >
           <SettingsItem
-            label="Lixeira de Estudos"
+            label="Downloads de Áudio"
+            description="Baixe capítulos para ouvir offline"
+            icon="download"
+            onPress={() => router.push(ROUTES.DOWNLOADS as any)}
+          />
+          <BibleDivider
+            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
+          />
+          <SettingsItem
+            label="Gerenciar estudos excluídos"
             description="Gerencie estudos excluídos ou restaure-os"
             icon="trash-2"
             onPress={() => router.push(ROUTES.TRASH as any)}
-          />
-          <BibleDivider
-            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
-          />
-          <SettingsItem
-            label="Limpar Histórico"
-            description="Remove todo o historico de pesquisa de versiculos"
-            icon="clock"
-            onPress={() => setIsClearCacheConfirmVisible(true)}
-          />
-          <BibleDivider
-            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
-          />
-          <SettingsItem
-            label="Limpar Plano de Leitura"
-            description="Remove todos os planos de leitura"
-            icon="calendar"
-            onPress={() => setIsClearPlanConfirmVisible(true)}
-          />
-          <BibleDivider
-            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
-          />
-          <SettingsItem
-            label="Limpar Tudo"
-            description="Limpar todos os dados do aplicativo"
-            icon="trash"
-            onPress={() => setIsClearAllConfirmVisible(true)}
           />
         </View>
 
@@ -776,6 +727,57 @@ export default function ConfigurationScreen() {
           />
         </View>
 
+        <BibleText
+          style={{
+            marginTop: ms(DESIGN.spacing.xl),
+            marginLeft: ms(DESIGN.spacing.sm),
+            marginBottom: ms(DESIGN.spacing.sm),
+            fontSize: ms(DESIGN.fontSize.md),
+            fontWeight: "700",
+            color: colors.error,
+          }}
+        >
+          ZONA DE PERIGO
+        </BibleText>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.error + "60",
+              shadowColor: colors.shadow,
+            },
+          ]}
+        >
+          <SettingsItem
+            label="Limpar Histórico"
+            description="Remove todo o historico de pesquisa de versiculos"
+            icon="clock"
+            isDanger
+            onPress={() => setIsClearCacheConfirmVisible(true)}
+          />
+          <BibleDivider
+            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
+          />
+          <SettingsItem
+            label="Limpar Plano de Leitura"
+            description="Remove todos os planos de leitura"
+            icon="calendar"
+            isDanger
+            onPress={() => setIsClearPlanConfirmVisible(true)}
+          />
+          <BibleDivider
+            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
+          />
+          <SettingsItem
+            label="Limpar Tudo"
+            description="Limpar todos os dados do aplicativo"
+            icon="trash"
+            isDanger
+            onPress={() => setIsClearAllConfirmVisible(true)}
+          />
+        </View>
+
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={handleVersionTap}
@@ -792,7 +794,7 @@ export default function ConfigurationScreen() {
               fontWeight: "600",
             }}
           >
-            Bíblia Sagrada v1.4.0
+            Bíblia Sagrada v{require("../../app.json").expo.version}
           </BibleText>
         </TouchableOpacity>
       </ScrollView>

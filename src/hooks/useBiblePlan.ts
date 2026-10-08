@@ -293,8 +293,35 @@ export function useBiblePlan() {
         (d) => d.isCompleted,
       );
       const completedCount = completedDaysList.length;
+      let totalChapters = 0;
+      let readChapters = 0;
+      for (const month of months) {
+        for (const day of month.days) {
+          const isDayRead =
+            !!plan.completedDays[dayKey(month.monthNumber, day.day)]
+              ?.isCompleted;
+          for (const book of day.books) {
+            const chapters = new Set<number>(
+              book.chapters ?? book.verses?.map((v) => v.chapter) ?? [],
+            );
+            totalChapters += chapters.size;
+            for (const chapter of chapters) {
+              if (
+                isDayRead ||
+                plan.completedChapters?.[
+                  chapterKey(month.monthNumber, day.day, book.abbrev, chapter)
+                ]?.isCompleted
+              ) {
+                readChapters++;
+              }
+            }
+          }
+        }
+      }
       const progressPercent =
-        totalDays > 0 ? Math.round((completedCount / totalDays) * 100) : 0;
+        totalChapters > 0
+          ? Math.round((readChapters / totalChapters) * 100)
+          : 0;
       const isPaused = !!plan.pausedAt;
       const isCompleted = totalDays > 0 && completedCount === totalDays;
       const completedAtMs = isCompleted
@@ -314,21 +341,28 @@ export function useBiblePlan() {
         Math.floor((nowMidnight - startMidnight) / (1000 * 60 * 60 * 24)) + 1;
 
       const differenceDays = completedCount - elapsedDays;
-      const delayDays =
-        !isPaused && !isCompleted && differenceDays < 0
-          ? Math.abs(differenceDays)
-          : 0;
+      const missedDays = Math.max(0, elapsedDays - 1 - completedCount);
+      const delayDays = !isPaused && !isCompleted ? missedDays : 0;
       const aheadDays =
         !isPaused && !isCompleted && differenceDays > 0 ? differenceDays : 0;
 
       const expectedEndMs =
         startMidnight + (totalDays - 1) * 24 * 60 * 60 * 1000;
+      const remainingDays = totalDays - completedCount;
+      const hasReadingToday = completedCount < elapsedDays;
       const estimatedEndMs =
-        nowMidnight + (totalDays - completedCount) * 24 * 60 * 60 * 1000;
+        nowMidnight +
+        Math.max(0, hasReadingToday ? remainingDays - 1 : remainingDays) *
+          24 *
+          60 *
+          60 *
+          1000;
 
       return {
         totalDays,
         completedCount,
+        totalChapters,
+        readChapters,
         progressPercent,
         elapsed: elapsedDays,
         delayDays,

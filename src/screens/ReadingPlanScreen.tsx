@@ -818,6 +818,7 @@ export default function ReadingPlanScreen() {
                 borderColor: isToday ? colors.primary : colors.border,
                 borderWidth: isToday ? ms(2) : 1,
                 shadowColor: colors.shadow,
+                elevation: isToday ? 0 : 1,
                 opacity: isCompleted ? 0.6 : 1,
               },
             ]}
@@ -998,33 +999,6 @@ export default function ReadingPlanScreen() {
               {selectedPlan.title}
             </BibleText>
 
-            {selectedStreak > 0 && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: ms(DESIGN.spacing.xs),
-                  marginTop: ms(DESIGN.spacing.sm),
-                }}
-              >
-                <BibleIcon
-                  name="zap"
-                  color={colors.primary}
-                  size={ms(DESIGN.fontSize.lg)}
-                />
-                <BibleText
-                  style={{
-                    fontSize: ms(DESIGN.fontSize.sm),
-                    color: colors.onSurface,
-                    fontWeight: "700",
-                  }}
-                >
-                  {selectedStreak} {selectedStreak === 1 ? "dia" : "dias"}{" "}
-                  seguidos
-                </BibleText>
-              </View>
-            )}
-
             <View style={{ marginTop: ms(16), marginBottom: ms(16) }}>
               <View
                 style={{
@@ -1165,45 +1139,33 @@ export default function ReadingPlanScreen() {
             </View>
           </View>
         </View>
-        {showGoToToday && (
-          <TouchableOpacity
+        {selectedStreak > 0 && (
+          <View
             style={{
-              backgroundColor: colors.primary + "15",
-              padding: ms(DESIGN.spacing.md),
-              borderRadius: ms(DESIGN.borderRadius.md),
               flexDirection: "row",
               alignItems: "center",
-              justifyContent: "center",
+              gap: ms(DESIGN.spacing.xs),
               marginBottom: ms(DESIGN.spacing.md),
-              gap: ms(8),
-              borderWidth: 1,
-              borderColor: colors.primary + "30",
+              marginLeft: ms(DESIGN.spacing.xs),
             }}
-            onPress={() => {
-              listRef.current?.scrollToIndex({
-                index: Math.min(todayIndex, flatDays.length - 1),
-                animated: true,
-                viewPosition: 0,
-              });
-            }}
-            activeOpacity={0.7}
           >
             <BibleIcon
-              name="calendar"
+              name="zap"
               color={colors.primary}
-              size={ms(DESIGN.icon.sm)}
+              size={ms(DESIGN.fontSize.lg)}
             />
             <BibleText
               style={{
-                color: colors.primary,
+                fontSize: ms(DESIGN.fontSize.sm),
+                color: colors.onSurface,
                 fontWeight: "700",
-                fontSize: ms(DESIGN.fontSize.md),
               }}
             >
-              Ir para leitura de hoje
+              {selectedStreak} {selectedStreak === 1 ? "dia" : "dias"} seguidos
             </BibleText>
-          </TouchableOpacity>
+          </View>
         )}
+
         {showGoToLast && (
           <TouchableOpacity
             style={{
@@ -1240,6 +1202,45 @@ export default function ReadingPlanScreen() {
               }}
             >
               Ir para última leitura
+            </BibleText>
+          </TouchableOpacity>
+        )}
+        {showGoToToday && (
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.primary + "15",
+              padding: ms(DESIGN.spacing.md),
+              borderRadius: ms(DESIGN.borderRadius.md),
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: ms(DESIGN.spacing.md),
+              gap: ms(8),
+              borderWidth: 1,
+              borderColor: colors.primary + "30",
+            }}
+            onPress={() => {
+              listRef.current?.scrollToIndex({
+                index: Math.min(todayIndex, flatDays.length - 1),
+                animated: true,
+                viewPosition: 0,
+              });
+            }}
+            activeOpacity={0.7}
+          >
+            <BibleIcon
+              name="calendar"
+              color={colors.primary}
+              size={ms(DESIGN.icon.sm)}
+            />
+            <BibleText
+              style={{
+                color: colors.primary,
+                fontWeight: "700",
+                fontSize: ms(DESIGN.fontSize.md),
+              }}
+            >
+              Ir para leitura de hoje
             </BibleText>
           </TouchableOpacity>
         )}

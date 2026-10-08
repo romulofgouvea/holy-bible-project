@@ -95,3 +95,13 @@ jobs:
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
+
+      - name: Publicar versão Portable (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          cp src-tauri/target/release/holy-bible.exe "dist/Biblia Online (Portable).exe"
+          gh release upload "${{ github.ref_name }}" "dist/Biblia Online (Portable).exe" --clobber

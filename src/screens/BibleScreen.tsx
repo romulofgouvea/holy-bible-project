@@ -435,14 +435,19 @@ export default function BibleScreen() {
   const handleFirstViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: any[] }) => {
       const verseItem = viewableItems.find(
-        (v) => v.isViewable && v.item?.type === "verse",
+        (v) =>
+          v.isViewable &&
+          (v.item?.type === "verse" || v.item?.type === "paragraph"),
       );
       if (verseItem) topVisibleVerseRef.current = verseItem.item.verse;
 
       const visible = new Set<number>();
       for (const v of viewableItems) {
-        if (v.isViewable && v.item?.type === "verse") {
+        if (!v.isViewable) continue;
+        if (v.item?.type === "verse") {
           visible.add(v.item.verse);
+        } else if (v.item?.type === "paragraph") {
+          v.item.verses.forEach((pv: any) => visible.add(pv.verse));
         }
       }
       visibleVersesRef.current = visible;

@@ -1,6 +1,6 @@
 [package]
 name = "holy-bible"
-version = "1.4.3"
+version = "1.4.6"
 description = "Bíblia Online"
 edition = "2021"
 

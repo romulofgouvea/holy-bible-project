@@ -76,6 +76,7 @@ type VerseColumnProps = {
   fontSizeMultiplier: number;
   textAlign: string;
   shouldShowTitles: boolean;
+  shouldShowVerseNumbers: boolean;
   ms: (size: number, factor?: number) => number;
   DESIGN: any;
   styles: any;
@@ -92,6 +93,7 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
     fontSizeMultiplier,
     textAlign,
     shouldShowTitles,
+    shouldShowVerseNumbers,
     ms,
     DESIGN,
     styles,
@@ -101,6 +103,8 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
   if (!verseItem) {
     return <View style={styles.comparisonCol} />;
   }
+
+  const textGap = shouldShowVerseNumbers ? "  " : "";
 
   const leadingTitles =
     shouldShowTitles && verseItem.titles
@@ -116,7 +120,7 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
     if (midVerseTitles.length === 0) {
       return (
         <React.Fragment>
-          {"\u00A0\u00A0"}
+          {textGap}
           {verseItem.text}
         </React.Fragment>
       );
@@ -136,7 +140,7 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
       );
       elements.push(
         <React.Fragment key={`text-${index}`}>
-          {index === 0 ? "\u00A0\u00A0" : ""}
+          {index === 0 ? textGap : ""}
           {textBefore}
         </React.Fragment>,
       );
@@ -147,6 +151,7 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
           key={`title-${index}`}
           style={{
             color: primaryColor,
+            fontSize: ms(DESIGN.fontSize.xl * fontSizeMultiplier),
             fontWeight: t.type === "speech" ? "500" : "700",
             fontStyle: t.type === "speech" ? "italic" : "normal",
           }}
@@ -184,7 +189,7 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
                 styles.leadingTitleText,
                 {
                   color: primaryColor,
-                  fontSize: ms(DESIGN.fontSize.md * fontSizeMultiplier),
+                  fontSize: ms(DESIGN.fontSize.xl * fontSizeMultiplier),
                   fontWeight: t.type === "speech" ? "500" : "700",
                   fontStyle: t.type === "speech" ? "italic" : "normal",
                 },
@@ -209,15 +214,17 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
           },
         ]}
       >
-        <BibleText
-          style={{
-            color: primaryColor,
-            fontWeight: "700",
-            fontSize: ms(DESIGN.fontSize.sm * fontSizeMultiplier),
-          }}
-        >
-          {verseNumber}
-        </BibleText>
+        {shouldShowVerseNumbers && (
+          <BibleText
+            style={{
+              color: primaryColor,
+              fontWeight: "700",
+              fontSize: ms(DESIGN.fontSize.sm * fontSizeMultiplier),
+            }}
+          >
+            {verseNumber}
+          </BibleText>
+        )}
         {renderMidVerseTitlesAndText()}
         {hasNote && (
           <BibleText style={{ color: primaryColor, opacity: 0.8 }}>
@@ -246,6 +253,7 @@ type ComparisonRowProps = {
   fontSizeMultiplier: number;
   textAlign: string;
   shouldShowTitles: boolean;
+  shouldShowVerseNumbers: boolean;
   ms: (size: number, factor?: number) => number;
   DESIGN: any;
   styles: any;
@@ -265,6 +273,7 @@ const ComparisonRow = React.memo((props: ComparisonRowProps) => {
     fontSizeMultiplier,
     textAlign,
     shouldShowTitles,
+    shouldShowVerseNumbers,
     ms,
     DESIGN,
     styles,
@@ -331,6 +340,7 @@ const ComparisonRow = React.memo((props: ComparisonRowProps) => {
         fontSizeMultiplier={fontSizeMultiplier}
         textAlign={textAlign}
         shouldShowTitles={shouldShowTitles}
+        shouldShowVerseNumbers={shouldShowVerseNumbers}
         ms={ms}
         DESIGN={DESIGN}
         styles={styles}
@@ -346,6 +356,7 @@ const ComparisonRow = React.memo((props: ComparisonRowProps) => {
         fontSizeMultiplier={fontSizeMultiplier}
         textAlign={textAlign}
         shouldShowTitles={shouldShowTitles}
+        shouldShowVerseNumbers={shouldShowVerseNumbers}
         ms={ms}
         DESIGN={DESIGN}
         styles={styles}
@@ -388,6 +399,7 @@ export const BibleComparisonReader = React.memo(
       readerColors,
       readerTheme,
       shouldShowTitles,
+      shouldShowVerseNumbers,
     } = useReaderSettings();
 
     const flashListRef = useRef<any>(null);
@@ -671,7 +683,7 @@ export const BibleComparisonReader = React.memo(
                               0.875 *
                               fontSizeMultiplier,
                           ),
-                          color: readerColors.onBackground,
+                          color: primaryColor,
                         },
                       ]}
                     >
@@ -689,7 +701,7 @@ export const BibleComparisonReader = React.memo(
                               0.875 *
                               fontSizeMultiplier,
                           ),
-                          color: readerColors.onBackground,
+                          color: primaryColor,
                         },
                       ]}
                     >
@@ -788,6 +800,7 @@ export const BibleComparisonReader = React.memo(
                 fontSizeMultiplier={fontSizeMultiplier}
                 textAlign={textAlign}
                 shouldShowTitles={shouldShowTitles}
+                shouldShowVerseNumbers={shouldShowVerseNumbers}
                 ms={ms}
                 DESIGN={DESIGN}
                 styles={styles}

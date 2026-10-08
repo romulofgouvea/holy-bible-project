@@ -33,6 +33,8 @@ export type ReaderSettingsContextType = {
   readerColors: ThemeColors;
   shouldShowTitles: boolean;
   setShouldShowTitles: (val: boolean) => void;
+  shouldShowVerseNumbers: boolean;
+  setShouldShowVerseNumbers: (val: boolean) => void;
 };
 
 const ReaderSettingsContext = createContext<ReaderSettingsContextType>(
@@ -51,6 +53,8 @@ export const ReaderSettingsProvider = ({
   const [readerTheme, setReaderThemeState] = useState<ReaderTheme>("light");
   const [readerFont, setReaderFontState] = useState<ReaderFont>("poppins");
   const [shouldShowTitles, setShouldShowTitlesState] = useState(true);
+  const [shouldShowVerseNumbers, setShouldShowVerseNumbersState] =
+    useState(true);
 
   const loadReaderSettings = useCallback(async () => {
     try {
@@ -60,12 +64,14 @@ export const ReaderSettingsProvider = ({
         savedTheme,
         savedFont,
         savedShowTitles,
+        savedShowVerseNumbers,
       ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.FONT_SIZE),
         AsyncStorage.getItem(STORAGE_KEYS.TEXT_ALIGN),
         AsyncStorage.getItem(STORAGE_KEYS.READER_THEME),
         AsyncStorage.getItem(STORAGE_KEYS.READER_FONT),
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_TITLES),
+        AsyncStorage.getItem(STORAGE_KEYS.SHOW_VERSE_NUMBERS),
       ]);
 
       if (savedFontSize !== null)
@@ -75,6 +81,8 @@ export const ReaderSettingsProvider = ({
       if (savedFont !== null) setReaderFontState(savedFont as ReaderFont);
       if (savedShowTitles !== null)
         setShouldShowTitlesState(savedShowTitles === "true");
+      if (savedShowVerseNumbers !== null)
+        setShouldShowVerseNumbersState(savedShowVerseNumbers === "true");
     } catch (e) {}
     setIsLoaded(true);
   }, []);
@@ -123,6 +131,13 @@ export const ReaderSettingsProvider = ({
     } catch (e) {}
   }, []);
 
+  const setShouldShowVerseNumbers = useCallback(async (val: boolean) => {
+    setShouldShowVerseNumbersState(val);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.SHOW_VERSE_NUMBERS, String(val));
+    } catch (e) {}
+  }, []);
+
   const value = useMemo(() => {
     const activePalette =
       COLOR_THEMES[colorTheme as ColorThemeKey] || COLOR_THEMES.teal;
@@ -153,6 +168,8 @@ export const ReaderSettingsProvider = ({
       readerColors,
       shouldShowTitles,
       setShouldShowTitles,
+      shouldShowVerseNumbers,
+      setShouldShowVerseNumbers,
     };
   }, [
     colorTheme,
@@ -161,11 +178,13 @@ export const ReaderSettingsProvider = ({
     readerTheme,
     readerFont,
     shouldShowTitles,
+    shouldShowVerseNumbers,
     setFontSizeMultiplier,
     setTextAlign,
     setReaderTheme,
     setReaderFont,
     setShouldShowTitles,
+    setShouldShowVerseNumbers,
   ]);
 
   if (!isLoaded) return null;

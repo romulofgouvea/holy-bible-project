@@ -5,6 +5,19 @@ export type ChangelogItem = {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "1.4.6",
+    highlights: [
+      "Nova opção para exibir ou ocultar os números dos versículos, para uma leitura em texto corrido",
+      "Títulos de seção dentro do texto agora acompanham o tamanho da fonte e usam a cor de destaque",
+      "Remoção do menu de clique direito na versão para Windows",
+      "Versão Portable para Windows disponível nos downloads",
+      "Na pesquisa, o filtro aplicado agora é clicável e abre os filtros de busca, sem o contador de resultados",
+      'Tela de Configurações reorganizada: nova seção de Configurações Gerais, "Gerenciar estudos excluídos" nas configurações da Bíblia e Zona de Perigo para as opções de limpeza',
+      "Versão exibida no fim da tela de Configurações agora acompanha a versão do app",
+      "Ajustes gerais de estabilidade e desempenho",
+    ],
+  },
+  {
     version: "1.4.5",
     highlights: [
       "Correção na reprodução em áudio dos capítulos, que não tocavam em alguns dispositivos",
