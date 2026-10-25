@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { escapeHtml, sanitizeHtml } from "./sanitize";
 import { Alert, Platform } from "react-native";
 
 const EXPORT_CSS = `
@@ -68,9 +69,9 @@ export async function exportToPDF(
   showTitle: boolean = true,
 ) {
   try {
-    const htmlDocument = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>${EXPORT_CSS}</style></head><body>
-      ${showTitle ? `<h1 class="main-title">${title}</h1>` : ""}
-      ${htmlContent.replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, "")}
+    const htmlDocument = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${EXPORT_CSS}</style></head><body>
+      ${showTitle ? `<h1 class="main-title">${escapeHtml(title)}</h1>` : ""}
+      ${sanitizeHtml(htmlContent).replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, "")}
     </body></html>`;
 
     if (Platform.OS === "web") {
@@ -81,6 +82,7 @@ export async function exportToPDF(
       frame.style.width = "0";
       frame.style.height = "0";
       frame.style.border = "0";
+      frame.setAttribute("sandbox", "allow-same-origin allow-modals");
       frame.srcdoc = htmlDocument;
       frame.onload = () => {
         const frameWindow = frame.contentWindow;

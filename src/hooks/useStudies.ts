@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { DeviceEventEmitter } from "react-native";
 import { STORAGE_KEYS } from "../constants/storage";
 import { Study } from "../models";
+import { sanitizeHtml } from "../utils/sanitize";
 import { BACKUP_RESTORED_EVENT, writeAutoBackupFile } from "../utils/backup";
 export type { Study };
 
@@ -158,7 +159,7 @@ export function useStudies() {
                 timeStyle: "short",
               }),
             timestamp: s.timestamp || Date.now(),
-            content: s.content,
+            content: sanitizeHtml(s.content),
             isActive: s.isActive !== false,
           };
         });

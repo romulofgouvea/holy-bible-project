@@ -10,6 +10,7 @@ import React, {
 import { DeviceEventEmitter } from "react-native";
 import { DEFAULT_VOICE_ID } from "../constants/audioVoices";
 import { STORAGE_KEYS } from "../constants/storage";
+import { isSafeVoiceId } from "../utils/sanitize";
 import { BACKUP_RESTORED_EVENT } from "../utils/backup";
 
 export type AudioSettingsContextType = {
@@ -38,13 +39,13 @@ export const AudioSettingsProvider = ({
 
   const loadAudioSettings = useCallback(async () => {
     try {
-      const [savedVoice, savedContinuous, savedAutoScroll] =
-        await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEYS.AUDIO_VOICE),
-          AsyncStorage.getItem(STORAGE_KEYS.AUDIO_CONTINUOUS_PLAYBACK),
-          AsyncStorage.getItem(STORAGE_KEYS.AUDIO_AUTO_SCROLL),
-        ]);
-      if (savedVoice !== null) setSelectedVoiceState(savedVoice);
+      const [savedVoice, savedContinuous, savedAutoScroll] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.AUDIO_VOICE),
+        AsyncStorage.getItem(STORAGE_KEYS.AUDIO_CONTINUOUS_PLAYBACK),
+        AsyncStorage.getItem(STORAGE_KEYS.AUDIO_AUTO_SCROLL),
+      ]);
+      if (savedVoice !== null && isSafeVoiceId(savedVoice))
+        setSelectedVoiceState(savedVoice);
       if (savedContinuous !== null)
         setContinuousPlaybackState(savedContinuous === "true");
       if (savedAutoScroll !== null)

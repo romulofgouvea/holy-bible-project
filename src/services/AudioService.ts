@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 import { DEFAULT_VOICE_ID } from "../constants/audioVoices";
+import { isSafeVoiceId } from "../utils/sanitize";
 import { ChapterAudioManifest } from "../models";
 
 const IS_WEB = Platform.OS === "web";
@@ -79,7 +80,11 @@ export class AudioService {
   }
 
   static getLocalAudioDir(version: string, voice: string): string {
-    return `${FileSystem.documentDirectory}audios/${version.toLowerCase()}/${voice}/`;
+    const safeVersion = isSafeVoiceId(version)
+      ? version.toLowerCase()
+      : "invalid";
+    const safeVoice = isSafeVoiceId(voice) ? voice : DEFAULT_VOICE_ID;
+    return `${FileSystem.documentDirectory}audios/${safeVersion}/${safeVoice}/`;
   }
 
   static async ensureLocalAudioDir(

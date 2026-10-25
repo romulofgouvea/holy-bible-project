@@ -17,9 +17,21 @@ import { useReaderSettings } from "../../hooks/useReaderSettings";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../hooks/useTheme";
 import { impactLight, selectionHaptic } from "../../utils/haptics";
+import { sanitizeHtml } from "../../utils/sanitize";
 import { BibleDivider } from "../BibleDivider";
 import { BibleIcon } from "../BibleIcon";
 import { BibleText } from "../BibleText";
+
+type EditorCommand = {
+  name:
+    | "execCmd"
+    | "changeFontSize"
+    | "insertHtml"
+    | "toggleTaskList"
+    | "blur"
+    | "applyTheme";
+  args: (string | number | null)[];
+};
 
 export type RichTextEditorRef = {
   insertVerseHtml: (html: string) => void;
@@ -116,14 +128,12 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
 
     const execDocumentCmd = (cmd: string, value?: string) => {
       selectionHaptic();
-      injectToEditor(
-        `window.execCmd('${cmd}', ${value ? `'${value}'` : "null"}); true;`,
-      );
+      injectToEditor({ name: "execCmd", args: [cmd, value ?? null] });
     };
 
     const changeFontSize = (delta: number) => {
       impactLight();
-      injectToEditor(`window.changeFontSize(${delta}); true;`);
+      injectToEditor({ name: "changeFontSize", args: [delta] });
     };
 
     const applyHighlight = (color: string) => {
@@ -131,48 +141,48 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
       execDocumentCmd("hiliteColor", color);
     };
 
-    const injectToEditor = (script: string) => {
+    const injectToEditor = (command: EditorCommand) => {
       if (Platform.OS === "web") {
-        if (webIframeRef.current?.contentWindow) {
-          webIframeRef.current.contentWindow.postMessage(
-            JSON.stringify({ type: "eval", code: script }),
-            "*",
-          );
-        }
+        webIframeRef.current?.contentWindow?.postMessage(
+          JSON.stringify({ type: "command", command }),
+          "*",
+        );
       } else {
-        webViewRef.current?.injectJavaScript(script);
+        webViewRef.current?.injectJavaScript(
+          `window.runEditorCommand(${JSON.stringify(command)}); true;`,
+        );
       }
     };
 
     React.useImperativeHandle(ref, () => ({
       insertVerseHtml: (html: string) => {
-        injectToEditor(
-          `window.insertHtml(\`${html.replace(/`/g, "\\`")}\`); true;`,
-        );
+        injectToEditor({ name: "insertHtml", args: [sanitizeHtml(html)] });
       },
       blur: () => {
-        injectToEditor(`document.getElementById('editor').blur(); true;`);
+        injectToEditor({ name: "blur", args: [] });
       },
     }));
 
     useEffect(() => {
       if (!webViewRef.current && Platform.OS !== "web") return;
-      const js = `
-      (function() {
-        document.body.style.backgroundColor = '${editorColors.background}';
-        var editorEl = document.getElementById('editor');
-        if (editorEl) {
-          editorEl.style.color = '${readerColors.onBackground || editorColors.onBackground}';
-          editorEl.style.backgroundColor = '${editorColors.background}';
-          editorEl.style.fontFamily = "${readerFontFamily === "Poppins_400Regular" ? "'Poppins_400Regular', sans-serif" : readerFontFamily}";
-        }
-      })();
-      true;
-    `;
-      injectToEditor(js);
+      injectToEditor({
+        name: "applyTheme",
+        args: [
+          editorColors.background,
+          readerColors.onBackground || editorColors.onBackground,
+          readerFontFamily === "Poppins_400Regular"
+            ? "'Poppins_400Regular', sans-serif"
+            : readerFontFamily,
+        ],
+      });
     }, [readerColors, editorColors, readerFontFamily]);
 
     const onMessage = (event: any) => {
+      if (
+        Platform.OS === "web" &&
+        event.source !== webIframeRef.current?.contentWindow
+      )
+        return;
       try {
         const { type, data } = JSON.parse(
           event.nativeEvent ? event.nativeEvent.data : event.data,
@@ -299,7 +309,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
       </style>
     </head>
     <body onclick="document.getElementById('editor').focus();">
-      <div id="editor" contenteditable="${readonly ? "false" : "true"}" placeholder="Comece a escrever seu estudo aqui...">${initialHtml}</div>
+      <div id="editor" contenteditable="${readonly ? "false" : "true"}" placeholder="Comece a escrever seu estudo aqui...">${sanitizeHtml(initialHtml)}</div>
       <script>
         const editor = document.getElementById('editor');
         let debounceTimer;
@@ -694,12 +704,33 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
           }
         });
 
+        var allowedCommands = {
+          execCmd: function(cmd, value) { window.execCmd(cmd, value); },
+          changeFontSize: function(delta) { window.changeFontSize(Number(delta) || 0); },
+          insertHtml: function(html) { window.insertHtml(String(html)); },
+          toggleTaskList: function() { window.toggleTaskList(); },
+          blur: function() { document.getElementById('editor').blur(); },
+          applyTheme: function(background, color, fontFamily) {
+            document.body.style.backgroundColor = background;
+            var editorEl = document.getElementById('editor');
+            if (editorEl) {
+              editorEl.style.color = color;
+              editorEl.style.backgroundColor = background;
+              editorEl.style.fontFamily = fontFamily;
+            }
+          }
+        };
+
+        window.runEditorCommand = function(command) {
+          if (!command || !Object.prototype.hasOwnProperty.call(allowedCommands, command.name)) return;
+          allowedCommands[command.name].apply(null, Array.isArray(command.args) ? command.args : []);
+        };
+
         window.addEventListener('message', function(event) {
+          if (event.source !== window.parent) return;
           try {
             var msg = JSON.parse(event.data);
-            if (msg.type === 'eval') {
-              eval(msg.code);
-            }
+            if (msg.type === 'command') window.runEditorCommand(msg.command);
           } catch(e) { }
         });
 
@@ -924,7 +955,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
                     },
                   ]}
                   onPress={() =>
-                    injectToEditor(`window.toggleTaskList(); true;`)
+                    injectToEditor({ name: "toggleTaskList", args: [] })
                   }
                 >
                   <BibleIcon
@@ -1229,13 +1260,13 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
               width: "100%",
               minHeight: 600,
             }}
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts"
           />
         ) : (
           <WebView
             ref={webViewRef}
             source={{ html: editorHtml }}
-            originWhitelist={["*"]}
+            originWhitelist={["about:blank"]}
             onMessage={onMessage}
             style={{ flex: 1, backgroundColor: colors.surface }}
             hideKeyboardAccessoryView={true}

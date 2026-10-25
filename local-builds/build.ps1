@@ -109,12 +109,16 @@ if (-not $IsWindows) {
     chmod +x ./gradlew
 }
 
+${env:ORG_GRADLE_PROJECT_android.injected.signing.store.password} = $STORE_PASSWORD
+${env:ORG_GRADLE_PROJECT_android.injected.signing.key.password} = $KEY_PASSWORD
+
 & $GRADLEW bundleRelease --quiet `
     "-Dorg.gradle.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=512m" `
     "-Pandroid.injected.signing.store.file=$KEYSTORE_FULL" `
-    "-Pandroid.injected.signing.store.password=$STORE_PASSWORD" `
-    "-Pandroid.injected.signing.key.alias=$KEY_ALIAS" `
-    "-Pandroid.injected.signing.key.password=$KEY_PASSWORD"
+    "-Pandroid.injected.signing.key.alias=$KEY_ALIAS"
+
+Remove-Item "Env:ORG_GRADLE_PROJECT_android.injected.signing.store.password" -ErrorAction SilentlyContinue
+Remove-Item "Env:ORG_GRADLE_PROJECT_android.injected.signing.key.password" -ErrorAction SilentlyContinue
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Erro na compilacao." -ForegroundColor Red
