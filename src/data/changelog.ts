@@ -5,6 +5,16 @@ export type ChangelogItem = {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "1.4.7",
+    highlights: [
+      "Novo modo de desenho: rabisque, circule e risque sobre os versículos selecionados, com paleta de cores, seletor de cor contínuo, desfazer e limpar apenas os versículos escolhidos",
+      "Os desenhos ficam salvos por versão, livro, capítulo e versículo",
+      "Nova opção para ativar ou desativar o corretor ortográfico no editor de estudos",
+      "Mais segurança no editor de estudos, na exportação e na reprodução de áudio",
+      "Ajustes gerais de estabilidade e desempenho",
+    ],
+  },
+  {
     version: "1.4.6",
     highlights: [
       "Nova opção para exibir ou ocultar os números dos versículos, para uma leitura em texto corrido",
