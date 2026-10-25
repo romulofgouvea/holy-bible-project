@@ -35,6 +35,8 @@ export type ReaderSettingsContextType = {
   setShouldShowTitles: (val: boolean) => void;
   shouldShowVerseNumbers: boolean;
   setShouldShowVerseNumbers: (val: boolean) => void;
+  isSpellcheckEnabled: boolean;
+  setIsSpellcheckEnabled: (val: boolean) => void;
 };
 
 const ReaderSettingsContext = createContext<ReaderSettingsContextType>(
@@ -55,6 +57,7 @@ export const ReaderSettingsProvider = ({
   const [shouldShowTitles, setShouldShowTitlesState] = useState(true);
   const [shouldShowVerseNumbers, setShouldShowVerseNumbersState] =
     useState(true);
+  const [isSpellcheckEnabled, setIsSpellcheckEnabledState] = useState(true);
 
   const loadReaderSettings = useCallback(async () => {
     try {
@@ -65,6 +68,7 @@ export const ReaderSettingsProvider = ({
         savedFont,
         savedShowTitles,
         savedShowVerseNumbers,
+        savedSpellcheck,
       ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.FONT_SIZE),
         AsyncStorage.getItem(STORAGE_KEYS.TEXT_ALIGN),
@@ -72,6 +76,7 @@ export const ReaderSettingsProvider = ({
         AsyncStorage.getItem(STORAGE_KEYS.READER_FONT),
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_TITLES),
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_VERSE_NUMBERS),
+        AsyncStorage.getItem(STORAGE_KEYS.SPELLCHECK_ENABLED),
       ]);
 
       if (savedFontSize !== null)
@@ -83,6 +88,8 @@ export const ReaderSettingsProvider = ({
         setShouldShowTitlesState(savedShowTitles === "true");
       if (savedShowVerseNumbers !== null)
         setShouldShowVerseNumbersState(savedShowVerseNumbers === "true");
+      if (savedSpellcheck !== null)
+        setIsSpellcheckEnabledState(savedSpellcheck === "true");
     } catch (e) {}
     setIsLoaded(true);
   }, []);
@@ -138,6 +145,13 @@ export const ReaderSettingsProvider = ({
     } catch (e) {}
   }, []);
 
+  const setIsSpellcheckEnabled = useCallback(async (val: boolean) => {
+    setIsSpellcheckEnabledState(val);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.SPELLCHECK_ENABLED, String(val));
+    } catch (e) {}
+  }, []);
+
   const value = useMemo(() => {
     const activePalette =
       COLOR_THEMES[colorTheme as ColorThemeKey] || COLOR_THEMES.teal;
@@ -170,6 +184,8 @@ export const ReaderSettingsProvider = ({
       setShouldShowTitles,
       shouldShowVerseNumbers,
       setShouldShowVerseNumbers,
+      isSpellcheckEnabled,
+      setIsSpellcheckEnabled,
     };
   }, [
     colorTheme,
@@ -179,6 +195,8 @@ export const ReaderSettingsProvider = ({
     readerFont,
     shouldShowTitles,
     shouldShowVerseNumbers,
+    isSpellcheckEnabled,
+    setIsSpellcheckEnabled,
     setFontSizeMultiplier,
     setTextAlign,
     setReaderTheme,

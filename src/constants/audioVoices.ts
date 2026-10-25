@@ -8,3 +8,8 @@ export const AUDIO_VOICES: AudioVoice[] = [
 ];
 
 export const DEFAULT_VOICE_ID = "pray-more-voice";
+
+export const AUDIO_VERSIONS = ["ARA"];
+
+export const hasAudioForVersion = (version: string): boolean =>
+  AUDIO_VERSIONS.includes(version.toUpperCase());

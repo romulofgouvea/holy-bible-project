@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { hasAudioForVersion } from "../constants/audioVoices";
 import { useReaderSettings } from "../hooks/useReaderSettings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
@@ -38,6 +39,7 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
         container: {
           flexDirection: "row",
           alignItems: "center",
+          minHeight: ms(DESIGN.height.md),
           gap: ms(DESIGN.spacing.xs),
           paddingHorizontal: ms(DESIGN.spacing.md),
           paddingVertical: ms(DESIGN.spacing.xs),
@@ -97,17 +99,19 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
       >
         <BibleText style={styles.badgeText}>{chapter}</BibleText>
       </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.audioButton}
-        onPress={onOpenAudio}
-        activeOpacity={0.7}
-      >
-        <BibleIcon
-          name="headphones"
-          size={ms(DESIGN.icon.sm)}
-          color={readerColors.primary}
-        />
-      </TouchableOpacity>
+      {hasAudioForVersion(version) ? (
+        <TouchableOpacity
+          style={styles.audioButton}
+          onPress={onOpenAudio}
+          activeOpacity={0.7}
+        >
+          <BibleIcon
+            name="headphones"
+            size={ms(DESIGN.icon.sm)}
+            color={readerColors.primary}
+          />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 });

@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
   READER_FONT: "bible_reader_font",
   SHOW_TITLES: "bible_show_titles",
   SHOW_VERSE_NUMBERS: "bible_show_verse_numbers",
+  SPELLCHECK_ENABLED: "bible_spellcheck_enabled",
   APP_COLOR_THEME: "bible_app_color_theme",
   HAPTICS_ENABLED: "bible_haptics_enabled",
   LAST_ROUTE: "bible_last_route",

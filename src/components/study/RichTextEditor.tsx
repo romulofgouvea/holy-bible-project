@@ -29,7 +29,8 @@ type EditorCommand = {
     | "insertHtml"
     | "toggleTaskList"
     | "blur"
-    | "applyTheme";
+    | "applyTheme"
+    | "setSpellcheck";
   args: (string | number | null)[];
 };
 
@@ -61,7 +62,14 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
     const webIframeRef = useRef<any>(null);
     const { colors: themeColors, colorTheme, isDarkMode, colors } = useTheme();
     const { ms, DESIGN } = useResponsive();
-    const { readerColors, readerTheme, readerFontFamily } = useReaderSettings();
+    const {
+      readerColors,
+      readerTheme,
+      readerFontFamily,
+      isSpellcheckEnabled,
+      setIsSpellcheckEnabled,
+    } = useReaderSettings();
+    const initialSpellcheckRef = useRef(isSpellcheckEnabled);
 
     const styles = useMemo(
       () =>
@@ -136,6 +144,11 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
       injectToEditor({ name: "changeFontSize", args: [delta] });
     };
 
+    const toggleSpellcheck = () => {
+      selectionHaptic();
+      setIsSpellcheckEnabled(!isSpellcheckEnabled);
+    };
+
     const applyHighlight = (color: string) => {
       selectionHaptic();
       execDocumentCmd("hiliteColor", color);
@@ -176,6 +189,14 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
         ],
       });
     }, [readerColors, editorColors, readerFontFamily]);
+
+    useEffect(() => {
+      if (!webViewRef.current && Platform.OS !== "web") return;
+      injectToEditor({
+        name: "setSpellcheck",
+        args: [isSpellcheckEnabled ? 1 : 0],
+      });
+    }, [isSpellcheckEnabled]);
 
     const onMessage = (event: any) => {
       if (
@@ -309,7 +330,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
       </style>
     </head>
     <body onclick="document.getElementById('editor').focus();">
-      <div id="editor" contenteditable="${readonly ? "false" : "true"}" placeholder="Comece a escrever seu estudo aqui...">${sanitizeHtml(initialHtml)}</div>
+      <div id="editor" lang="pt-BR" spellcheck="${initialSpellcheckRef.current ? "true" : "false"}" autocorrect="${initialSpellcheckRef.current ? "on" : "off"}" contenteditable="${readonly ? "false" : "true"}" placeholder="Comece a escrever seu estudo aqui...">${sanitizeHtml(initialHtml)}</div>
       <script>
         const editor = document.getElementById('editor');
         let debounceTimer;
@@ -710,6 +731,17 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
           insertHtml: function(html) { window.insertHtml(String(html)); },
           toggleTaskList: function() { window.toggleTaskList(); },
           blur: function() { document.getElementById('editor').blur(); },
+          setSpellcheck: function(isEnabled) {
+            var editorEl = document.getElementById('editor');
+            if (!editorEl) return;
+            editorEl.setAttribute('spellcheck', Number(isEnabled) ? 'true' : 'false');
+            editorEl.setAttribute('autocorrect', Number(isEnabled) ? 'on' : 'off');
+            if (document.activeElement === editorEl) {
+              saveSelection();
+              editorEl.blur();
+              window.restoreSelection();
+            }
+          },
           applyTheme: function(background, color, fontFamily) {
             document.body.style.backgroundColor = background;
             var editorEl = document.getElementById('editor');
@@ -1213,6 +1245,38 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
                   onPress={() => execDocumentCmd("redo")}
                 >
                   <BibleIcon name="rotate-cw" color={colors.onSurface} />
+                </TouchableOpacity>
+              </View>
+
+              <BibleDivider
+                vertical
+                height={20}
+                margin={ms(DESIGN.spacing.sm)}
+              />
+
+              <View
+                style={[
+                  styles.rowGroup,
+                  {
+                    backgroundColor: colors.surfaceHighlight,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.groupBtn,
+                    isSpellcheckEnabled && { backgroundColor: colors.primary },
+                  ]}
+                  onPress={toggleSpellcheck}
+                  accessibilityLabel="Corretor ortográfico"
+                >
+                  <BibleIcon
+                    name="check-circle"
+                    color={
+                      isSpellcheckEnabled ? colors.onPrimary : colors.onSurface
+                    }
+                  />
                 </TouchableOpacity>
               </View>
             </ScrollView>
