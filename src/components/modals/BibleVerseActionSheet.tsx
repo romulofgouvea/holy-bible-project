@@ -23,12 +23,19 @@ type VerseActionSheetProps = {
   highlights: Record<string, any>;
   onClose: () => void;
   onBulkHighlight: (verses: SelectedVerse[], color: string | null) => void;
+  onDraw?: (verses: SelectedVerse[]) => void;
   onShowToast?: (msg: string, type?: "success" | "info" | "warning") => void;
 };
 
 export function BibleVerseActionSheet(props: VerseActionSheetProps) {
-  const { visible, selectedVerses, highlights, onClose, onBulkHighlight } =
-    props;
+  const {
+    visible,
+    selectedVerses,
+    highlights,
+    onClose,
+    onBulkHighlight,
+    onDraw,
+  } = props;
   const { ms, DESIGN } = useResponsive();
   const { colors } = useTheme();
 
@@ -284,6 +291,28 @@ export function BibleVerseActionSheet(props: VerseActionSheetProps) {
                 color={count === 0 ? colors.textMuted : colors.primary}
               />
             </TouchableOpacity>
+
+            {onDraw && (
+              <TouchableOpacity
+                style={[
+                  styles.iconBtn,
+                  {
+                    backgroundColor:
+                      count === 0
+                        ? colors.surfaceHighlight
+                        : colors.primary + "25",
+                  },
+                ]}
+                onPress={() => onDraw(selectedVerses)}
+                disabled={count === 0}
+              >
+                <BibleIcon
+                  name="pen-tool"
+                  size={ms(DESIGN.spacing.lg)}
+                  color={count === 0 ? colors.textMuted : colors.primary}
+                />
+              </TouchableOpacity>
+            )}
           </View>
 
           <BibleIcon

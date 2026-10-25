@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ROUTE_LABELS } from "../../constants/routes";
+import { useDrawings } from "../../hooks/useDrawings";
 import { useReaderSettings } from "../../hooks/useReaderSettings";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../hooks/useTheme";
@@ -33,6 +34,7 @@ export function ReaderSettingsModal({
     shouldShowVerseNumbers,
     setShouldShowVerseNumbers,
   } = useReaderSettings();
+  const { showDrawings, setShowDrawings } = useDrawings();
 
   const handleSetTheme = (theme: "light" | "dark" | "sepia") => {
     selectionHaptic();
@@ -142,7 +144,10 @@ export function ReaderSettingsModal({
         </>
       }
     >
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.settingsWrapper}>
           {/* Theme Section */}
           <View style={styles.section}>
@@ -472,8 +477,58 @@ export function ReaderSettingsModal({
               ))}
             </View>
           </View>
+
+          <View style={styles.section}>
+            <BibleText
+              style={[styles.sectionTitle, { color: colors.textMuted }]}
+            >
+              Rabiscos
+            </BibleText>
+            <View
+              style={[
+                styles.unifiedRow,
+                { backgroundColor: colors.surfaceHighlight },
+              ]}
+            >
+              {[
+                { label: "Ocultar", value: false },
+                { label: "Exibir", value: true },
+              ].map((item, index) => (
+                <React.Fragment key={item.label}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      selectionHaptic();
+                      setShowDrawings(item.value);
+                    }}
+                    style={[
+                      styles.segmentBtn,
+                      showDrawings === item.value && {
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                  >
+                    <BibleText
+                      style={{
+                        fontSize: ms(DESIGN.fontSize.md),
+                        fontWeight: "700",
+                        color:
+                          showDrawings === item.value
+                            ? colors.onPrimary
+                            : colors.onBackground,
+                      }}
+                    >
+                      {item.label}
+                    </BibleText>
+                  </TouchableOpacity>
+                  {index === 0 && (
+                    <BibleDivider vertical height="60%" color={dividerColor} />
+                  )}
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </BiblePageModal>
   );
 }

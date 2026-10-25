@@ -24,6 +24,31 @@ export interface HighlightItem {
   verse: number;
 }
 
+export type DrawingTool = "pen" | "marker";
+
+export interface DrawingStroke {
+  id: string;
+  tool: DrawingTool;
+  color: string;
+  width: number;
+  points: number[];
+}
+
+export type VerseReference = {
+  version: string;
+  bookAbbrev: string;
+  bookName: string;
+  chapter: number;
+  verse: number;
+};
+
+export type DrawingEntry = VerseReference & {
+  timestamp: number;
+  strokes: DrawingStroke[];
+};
+
+export type VerseDrawings = Record<string, DrawingEntry>;
+
 export interface VerseNote {
   id: string;
   selectedVerses: Omit<SelectedVerse, "text">[];
@@ -32,23 +57,13 @@ export interface VerseNote {
   updatedAt: number;
 }
 
-export type SelectedVerse = {
-  chapter: number;
-  verse: number;
+export type SelectedVerse = VerseReference & {
   text: string;
-  bookName: string;
-  bookAbbrev: string;
-  version: string;
   compareText?: string;
   compareVersion?: string;
 };
 
-export type HistoryItem = {
-  version: string;
-  bookName: string;
-  bookAbbrev: string;
-  chapter: number;
-  verse: number;
+export type HistoryItem = VerseReference & {
   timestamp: number;
 };
 

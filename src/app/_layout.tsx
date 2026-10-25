@@ -14,6 +14,7 @@ import { AudioSettingsProvider } from "../hooks/useAudioSettings";
 import { DownloadsProvider } from "../hooks/useDownloads";
 import { ReaderSettingsProvider } from "../hooks/useReaderSettings";
 import { ThemeProvider, useTheme } from "../hooks/useTheme";
+import { DrawingProvider } from "../hooks/useDrawings";
 import { BibleModalProvider } from "../hooks/useBibleModals";
 import { BibleProvider, useBible } from "../hooks/useBible";
 import { GlobalBibleModals } from "../components/modals/GlobalBibleModals";
@@ -74,9 +75,11 @@ export default function RootLayout() {
           <AudioSettingsProvider>
             <DownloadsProvider>
               <BibleProvider>
-                <BibleModalProvider>
-                  <AppLayout />
-                </BibleModalProvider>
+                <DrawingProvider>
+                  <BibleModalProvider>
+                    <AppLayout />
+                  </BibleModalProvider>
+                </DrawingProvider>
               </BibleProvider>
             </DownloadsProvider>
           </AudioSettingsProvider>

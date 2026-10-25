@@ -26,6 +26,8 @@ import { BibleSkeleton } from "../components/BibleSkeleton";
 import { BibleText } from "../components/BibleText";
 import { BibleToast } from "../components/BibleToast";
 import { BibleLocationBar } from "../components/BibleLocationBar";
+import { DrawingToolbar } from "../components/DrawingToolbar";
+import { useDrawings } from "../hooks/useDrawings";
 import { BibleTopBar } from "../components/BibleTopBar";
 import { BibleVerseReader } from "../components/BibleVerseReader";
 import {
@@ -625,7 +627,12 @@ export default function BibleScreen() {
   const isAudioModalVisibleRef = useRef(isAudioModalVisible);
   isAudioModalVisibleRef.current = isAudioModalVisible;
 
+  const { isDrawMode, startDrawMode, stopDrawMode } = useDrawings();
+  const isDrawModeRef = useRef(isDrawMode);
+  isDrawModeRef.current = isDrawMode;
+
   const onVersePress = useCallback((item: any) => {
+    if (isDrawModeRef.current) return;
     if (isAudioModalVisibleRef.current) {
       audioModalRef.current?.seekToVerse(item.verse);
       return;
@@ -635,6 +642,7 @@ export default function BibleScreen() {
   }, []);
 
   const onVerseLongPress = useCallback((item: any) => {
+    if (isDrawModeRef.current) return;
     if (!isAudioModalVisibleRef.current) return;
 
     selectVerseForActionsRef.current(item);
@@ -644,6 +652,31 @@ export default function BibleScreen() {
     setIsActionSheetVisible(false);
     setSelectedVerses([]);
   };
+
+  const [drawVerses, setDrawVerses] = useState<number[]>([]);
+
+  const handleStartDrawing = useCallback(
+    (verses: SelectedVerse[]) => {
+      const first = verses.reduce<number | null>(
+        (min, v) => (min === null || v.verse < min ? v.verse : min),
+        null,
+      );
+      setDrawVerses(verses.map((v) => v.verse));
+      setIsActionSheetVisible(false);
+      setSelectedVerses([]);
+      startDrawMode();
+      if (first !== null) {
+        setTimeout(() => sectionListRef.current?.scrollToVerse(first), 100);
+      }
+    },
+    [startDrawMode],
+  );
+
+  useEffect(() => stopDrawMode, [stopDrawMode]);
+
+  useEffect(() => {
+    if (isSplitScreen) stopDrawMode();
+  }, [isSplitScreen, stopDrawMode]);
 
   const { openModal } = useBibleModals();
 
@@ -1245,6 +1278,7 @@ export default function BibleScreen() {
                   {} as Record<string, boolean>,
                 )}
                 bookAbbrev={currentBook.abbrev}
+                bookName={currentBook.name}
                 onVersePress={onVersePress}
                 onVerseLongPress={onVerseLongPress}
                 onScroll={handleReaderScroll}
@@ -1255,7 +1289,7 @@ export default function BibleScreen() {
             </View>
           )}
 
-          {!isActionSheetVisible && !isAudioModalVisible && (
+          {!isActionSheetVisible && !isAudioModalVisible && !isDrawMode && (
             <Animated.View
               pointerEvents={isNavInteractive ? "box-none" : "none"}
               style={[
@@ -1366,7 +1400,18 @@ export default function BibleScreen() {
           onActionSheetClose();
         }}
         onShowToast={(msg) => show(msg)}
+        onDraw={isSplitScreen ? undefined : handleStartDrawing}
       />
+
+      {isDrawMode && (
+        <DrawingToolbar
+          version={version}
+          bookAbbrev={currentBook.abbrev}
+          chapter={chapter}
+          verses={drawVerses}
+          onDone={stopDrawMode}
+        />
+      )}
 
       <BibleDrawerMenu
         visible={isDrawerVisible}

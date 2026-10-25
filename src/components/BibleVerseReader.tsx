@@ -3,12 +3,14 @@ import { FlashList } from "@shopify/flash-list";
 import React, { useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ALIASES } from "../data/bible-version";
+import { useDrawings } from "../hooks/useDrawings";
 import { useReaderSettings } from "../hooks/useReaderSettings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { impactLight, impactMedium } from "../utils/haptics";
 import { BibleIcon } from "./BibleIcon";
 import { BibleText } from "./BibleText";
+import { VerseDrawingLayer } from "./VerseDrawingLayer";
 
 import { VerseTitle } from "../models";
 
@@ -62,6 +64,7 @@ type VerseReaderProps = {
   notes: Record<string, any>;
   selectedKeys: Record<string, boolean>;
   bookAbbrev: string;
+  bookName?: string;
   version: string;
   onVersePress: (item: VerseItem) => void;
   onVerseLongPress?: (item: VerseItem) => void;
@@ -242,6 +245,9 @@ const VerseRow = React.memo(
     onVersePress,
     onVerseLongPress,
     splitMode,
+    version,
+    bookAbbrev,
+    bookName,
   }: any) => {
     const textGap = shouldShowVerseNumbers ? "  " : "";
     const blinkAnim = useRef(new Animated.Value(0)).current;
@@ -426,6 +432,15 @@ const VerseRow = React.memo(
                 </BibleText>
               )}
             </BibleText>
+            {!splitMode && (
+              <VerseDrawingLayer
+                version={version}
+                bookAbbrev={bookAbbrev}
+                bookName={bookName}
+                chapter={item.chapter}
+                verse={item.verse}
+              />
+            )}
           </Animated.View>
         </TouchableOpacity>
       </View>
@@ -446,7 +461,10 @@ const VerseRow = React.memo(
       prevProps.readerColors.background === nextProps.readerColors.background &&
       prevProps.primaryColor === nextProps.primaryColor &&
       prevProps.styles === nextProps.styles &&
-      prevProps.splitMode === nextProps.splitMode
+      prevProps.splitMode === nextProps.splitMode &&
+      prevProps.version === nextProps.version &&
+      prevProps.bookAbbrev === nextProps.bookAbbrev &&
+      prevProps.bookName === nextProps.bookName
     );
   },
 );
@@ -460,6 +478,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     notes,
     selectedKeys,
     bookAbbrev,
+    bookName = "",
     version,
     onVersePress,
     onVerseLongPress,
@@ -483,6 +502,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     shouldShowTitles,
     shouldShowVerseNumbers,
   } = useReaderSettings();
+  const { isDrawMode } = useDrawings();
 
   const flashListRef = useRef<any>(null);
 
@@ -570,7 +590,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
 
   const flatData = useMemo(() => {
     const data: ListItem[] = [];
-    const isContinuous = !splitMode && !shouldShowVerseNumbers;
+    const isContinuous = !splitMode && !shouldShowVerseNumbers && !isDrawMode;
     sections.forEach((sec) => {
       data.push({ type: "header", title: sec.title });
       let paragraph: VerseItem[] = [];
@@ -618,7 +638,14 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
       }
     });
     return data;
-  }, [sections, version, splitMode, shouldShowTitles, shouldShowVerseNumbers]);
+  }, [
+    sections,
+    version,
+    splitMode,
+    shouldShowTitles,
+    shouldShowVerseNumbers,
+    isDrawMode,
+  ]);
 
   useImperativeHandle(
     listRef,
@@ -835,6 +862,9 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
               onVersePress={onVersePress}
               onVerseLongPress={onVerseLongPress}
               splitMode={splitMode}
+              version={version}
+              bookAbbrev={bookAbbrev}
+              bookName={bookName}
             />
           );
         }}
@@ -847,6 +877,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
         onScrollEndDrag={onScrollEndDrag}
         onMomentumScrollEnd={onMomentumScrollEnd}
         scrollEventThrottle={scrollEventThrottle}
+        scrollEnabled={!isDrawMode}
       />
     </View>
   );
