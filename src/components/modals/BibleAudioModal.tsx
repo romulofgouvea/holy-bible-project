@@ -74,7 +74,8 @@ export const BibleAudioModal = forwardRef<
   const { visible, version, abbrev, chapter, voice, onClose } = props;
   const { ms, DESIGN } = useResponsive();
   const { colors } = useTheme();
-  const { continuousPlayback } = useAudioSettings();
+  const { continuousPlayback, playbackSpeed, setPlaybackSpeed } =
+    useAudioSettings();
 
   const [isLoading, setIsLoading] = useState(false);
   const [audioUrls, setAudioUrls] = useState<string[]>([]);
@@ -84,7 +85,8 @@ export const BibleAudioModal = forwardRef<
   const [isPlaying, setIsPlaying] = useState(false);
   const [isProgressReset, setIsProgressReset] = useState(true);
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
-  const [speed, setSpeed] = useState<SpeedOption>(1);
+  const speed = (SPEED_OPTIONS.find((o) => o === playbackSpeed) ??
+    1) as SpeedOption;
   const [trackWidth, setTrackWidth] = useState(0);
 
   const hasLoadedAudio = audioUrls.length > 0;
@@ -160,7 +162,7 @@ export const BibleAudioModal = forwardRef<
   const cycleSpeed = () => {
     const currentIndex = SPEED_OPTIONS.indexOf(speed);
     const nextSpeed = SPEED_OPTIONS[(currentIndex + 1) % SPEED_OPTIONS.length];
-    setSpeed(nextSpeed);
+    setPlaybackSpeed(nextSpeed);
     player.shouldCorrectPitch = true;
     player.setPlaybackRate(nextSpeed, "high");
   };
@@ -367,6 +369,7 @@ export const BibleAudioModal = forwardRef<
         progressWrap: {
           flex: 1,
           justifyContent: "center",
+          marginHorizontal: ms(DESIGN.spacing.sm),
           paddingVertical: ms(DESIGN.spacing.xs),
         },
         progressTrack: {
@@ -462,7 +465,7 @@ export const BibleAudioModal = forwardRef<
             <BibleIcon
               name="settings"
               size={ms(DESIGN.fontSize.lg)}
-              color={colors.onBackground}
+              color={colors.primary}
             />
           </TouchableOpacity>
         )}

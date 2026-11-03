@@ -1,8 +1,16 @@
 import { FlashList } from "@shopify/flash-list";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   BackHandler,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   ScrollView,
   StyleSheet,
@@ -23,6 +31,7 @@ import { DonateModal } from "../components/modals/DonateModal";
 import { ROUTE_LABELS, ROUTES } from "../constants/routes";
 import { BIBLE_PLAN_TEMPLATES } from "../data/bible-plan/biblePlanRegistry";
 import { useBible } from "../hooks/useBible";
+import { impactMedium } from "../utils/haptics";
 import { useBiblePlan } from "../hooks/useBiblePlan";
 import { useReadingPlanNotifications } from "../hooks/useReadingPlanNotifications";
 import { useResponsive } from "../hooks/useResponsive";
@@ -36,6 +45,14 @@ import {
 } from "../models/BiblePlanModels";
 
 import { BiblePageModal } from "../components/modals/BiblePageModal";
+
+const SCROLL_TOP_THRESHOLD = 400;
+const MAX_DAY_CHIPS = 12;
+
+const planViewMemory: { planId: string | null; index: number } = {
+  planId: null,
+  index: 0,
+};
 
 type ScreenView = "list" | "detail";
 
@@ -75,13 +92,11 @@ export default function ReadingPlanScreen() {
     activePlans,
     isLoaded,
     createBiblePlan,
-    toggleDay,
     toggleChapter,
-    toggleAllChaptersForDay,
+    setDaysCompleted,
     isDayCompleted,
     isChapterCompleted,
     getDayCompletedAt,
-    removeBiblePlan,
     removeBiblePlans,
     getBiblePlanStats,
     getBiblePlanStreak,
@@ -92,9 +107,13 @@ export default function ReadingPlanScreen() {
   useReadingPlanNotifications();
   const { toast, opacity, show } = useToast();
 
-  const [screenView, setScreenView] = useState<ScreenView>("list");
+  const [screenView, setScreenView] = useState<ScreenView>(
+    planViewMemory.planId ? "detail" : "list",
+  );
   const [isTemplateModalVisible, setIsTemplateModalVisible] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(
+    planViewMemory.planId,
+  );
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [isDonateVisible, setIsDonateVisible] = useState(false);
   const [isActionsVisible, setIsActionsVisible] = useState(false);
@@ -112,7 +131,36 @@ export default function ReadingPlanScreen() {
   );
   const [isChapterModalVisible, setIsChapterModalVisible] = useState(false);
   const listRef = useRef<any>(null);
-  const hasScrolledRef = useRef(false);
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const [currentMonthNumber, setCurrentMonthNumber] = useState(0);
+  const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
+  const [initialIndex, setInitialIndex] = useState(planViewMemory.index);
+  const setDaysCompletedRef = useRef(setDaysCompleted);
+
+  useEffect(() => {
+    setDaysCompletedRef.current = setDaysCompleted;
+  }, [setDaysCompleted]);
+
+  const handleViewableItemsChanged = useCallback(
+    ({
+      viewableItems,
+    }: {
+      viewableItems: { index: number | null; item: any }[];
+    }) => {
+      const first = viewableItems.find((v) => v.index != null);
+      if (!first) return;
+      planViewMemory.index = first.index ?? 0;
+      setCurrentMonthNumber(first.item.monthNumber);
+    },
+    [],
+  );
+
+  const handleDetailScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setIsScrolledDown(e.nativeEvent.contentOffset.y > SCROLL_TOP_THRESHOLD);
+    },
+    [],
+  );
 
   const selectedPlan = useMemo(
     () => activePlans.find((p) => p.id === selectedPlanId) ?? null,
@@ -133,14 +181,9 @@ export default function ReadingPlanScreen() {
 
   const lastCompletedIndex = useMemo(() => {
     if (!selectedPlan || flatDays.length === 0) return -1;
-    let lastIdx = -1;
-    for (let i = 0; i < flatDays.length; i++) {
-      const item = flatDays[i];
-      if (isDayCompleted(selectedPlan, item.monthNumber, item.day)) {
-        lastIdx = i;
-      }
-    }
-    return lastIdx;
+    return flatDays.findIndex(
+      (item) => !isDayCompleted(selectedPlan, item.monthNumber, item.day),
+    );
   }, [selectedPlan, flatDays, isDayCompleted]);
 
   const selectedStats = useMemo(() => {
@@ -168,6 +211,7 @@ export default function ReadingPlanScreen() {
     useCallback(() => {
       const onBackPress = () => {
         if (screenView === "detail") {
+          planViewMemory.planId = null;
           setScreenView("list");
           setSelectedPlanId(null);
           return true;
@@ -328,12 +372,16 @@ export default function ReadingPlanScreen() {
   );
 
   const handleOpenPlan = useCallback((planId: string) => {
+    planViewMemory.planId = planId;
+    planViewMemory.index = 0;
+    setInitialIndex(0);
     setSelectedPlanId(planId);
     setScreenView("detail");
   }, []);
 
   const handleBack = useCallback(() => {
     if (screenView === "detail") {
+      planViewMemory.planId = null;
       setScreenView("list");
       setSelectedPlanId(null);
     }
@@ -375,11 +423,91 @@ export default function ReadingPlanScreen() {
     [navigateTo, router],
   );
 
-  const handleToggleDay = useCallback(
-    (planId: string, monthNumber: number, day: number) => {
-      toggleDay(planId, monthNumber, day);
+  const applyDays = useCallback(
+    (
+      planId: string,
+      entries: { monthNumber: number; dayInfo: FlatDayItem }[],
+      status: boolean,
+      message: string,
+    ) => {
+      setDaysCompletedRef.current(planId, entries, status);
+      if (status) impactMedium();
+      show(message, "success", {
+        label: "Desfazer",
+        onPress: () => setDaysCompletedRef.current(planId, entries, !status),
+      });
     },
-    [toggleDay],
+    [show],
+  );
+
+  const handleQuickToggleDay = useCallback(
+    (item: FlatDayItem, isCompleted: boolean) => {
+      if (!selectedPlan) return;
+      applyDays(
+        selectedPlan.id,
+        [{ monthNumber: item.monthNumber, dayInfo: item }],
+        !isCompleted,
+        isCompleted
+          ? `Dia ${item.day} desmarcado`
+          : `Dia ${item.day} concluído`,
+      );
+    },
+    [selectedPlan, applyDays],
+  );
+
+  const handleMarkUpTo = useCallback(
+    (item: FlatDayItem) => {
+      if (!selectedPlan) return;
+      const entries = flatDays
+        .filter(
+          (d) =>
+            d.globalIndex <= item.globalIndex &&
+            !isDayCompleted(selectedPlan, d.monthNumber, d.day),
+        )
+        .map((d) => ({ monthNumber: d.monthNumber, dayInfo: d }));
+      if (entries.length === 0) return;
+      setIsChapterModalVisible(false);
+      applyDays(
+        selectedPlan.id,
+        entries,
+        true,
+        `${entries.length} ${entries.length === 1 ? "dia concluído" : "dias concluídos"}`,
+      );
+    },
+    [selectedPlan, flatDays, isDayCompleted, applyDays],
+  );
+
+  const handleGoToMonth = useCallback(
+    (monthNumber: number) => {
+      setIsMonthPickerVisible(false);
+      const index = flatDays.findIndex((d) => d.monthNumber === monthNumber);
+      if (index < 0) return;
+      setTimeout(() => {
+        listRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0,
+        });
+      }, 300);
+    },
+    [flatDays],
+  );
+
+  const monthPickerItems = useMemo(
+    () =>
+      (selectedTemplate?.months ?? []).map((m) => ({
+        icon: "calendar" as const,
+        label: m.month,
+        onPress: () => handleGoToMonth(m.monthNumber),
+      })),
+    [selectedTemplate, handleGoToMonth],
+  );
+
+  const currentMonthName = useMemo(
+    () =>
+      selectedTemplate?.months.find((m) => m.monthNumber === currentMonthNumber)
+        ?.month ?? "",
+    [selectedTemplate, currentMonthNumber],
   );
 
   const handleSetStartDate = useCallback(
@@ -448,6 +576,14 @@ export default function ReadingPlanScreen() {
       label: string;
       onPress: () => void;
     }[] = [
+      {
+        icon: "list",
+        label: "Ir para o mês",
+        onPress: () => {
+          setIsActionsVisible(false);
+          setTimeout(() => setIsMonthPickerVisible(true), 300);
+        },
+      },
       {
         icon: "calendar",
         label: "Alterar Data de Início",
@@ -769,6 +905,24 @@ export default function ReadingPlanScreen() {
         item.day,
       );
       const isToday = !isCompleted && item.globalIndex === todayIndex;
+      const dayChapters = item.books.flatMap((book) =>
+        (book.chapters ?? book.verses?.map((v) => v.chapter) ?? []).map(
+          (chapter) => ({
+            abbrev: book.abbrev,
+            chapter,
+            label: `${book.name} ${chapter}`,
+            isDone: isChapterCompleted(
+              selectedPlan,
+              item.monthNumber,
+              item.day,
+              book.abbrev,
+              chapter,
+            ),
+          }),
+        ),
+      );
+      const isOverdue =
+        !isCompleted && todayIndex >= 0 && item.globalIndex < todayIndex;
 
       return (
         <View>
@@ -862,6 +1016,26 @@ export default function ReadingPlanScreen() {
                     </BibleText>
                   </View>
                 )}
+                {isOverdue && (
+                  <View
+                    style={{
+                      backgroundColor: colors.error + "20",
+                      paddingHorizontal: ms(6),
+                      paddingVertical: ms(1),
+                      borderRadius: ms(DESIGN.borderRadius.sm),
+                    }}
+                  >
+                    <BibleText
+                      style={{
+                        fontSize: ms(DESIGN.fontSize.xs),
+                        fontWeight: "800",
+                        color: colors.error,
+                      }}
+                    >
+                      Atrasado
+                    </BibleText>
+                  </View>
+                )}
               </View>
               <BibleText
                 style={{
@@ -872,6 +1046,62 @@ export default function ReadingPlanScreen() {
               >
                 {item.reading}
               </BibleText>
+              {dayChapters.length > 0 && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: ms(DESIGN.spacing.xs),
+                    marginTop: ms(DESIGN.spacing.xs),
+                  }}
+                >
+                  {dayChapters.slice(0, MAX_DAY_CHIPS).map((c) => (
+                    <TouchableOpacity
+                      key={`${c.abbrev}-${c.chapter}`}
+                      onPress={() =>
+                        handleNavigateToChapter(c.abbrev, c.chapter)
+                      }
+                      style={{
+                        backgroundColor: c.isDone
+                          ? colors.primary
+                          : isOverdue
+                            ? colors.error + "20"
+                            : colors.primary + "15",
+                        borderRadius: ms(DESIGN.borderRadius.sm),
+                        paddingHorizontal: ms(DESIGN.spacing.sm),
+                        paddingVertical: ms(2),
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <BibleText
+                        style={{
+                          fontSize: ms(DESIGN.fontSize.xs),
+                          fontWeight: "700",
+                          color: c.isDone
+                            ? colors.onPrimary
+                            : isOverdue
+                              ? colors.error
+                              : colors.primary,
+                        }}
+                      >
+                        {c.label}
+                      </BibleText>
+                    </TouchableOpacity>
+                  ))}
+                  {dayChapters.length > MAX_DAY_CHIPS && (
+                    <BibleText
+                      style={{
+                        fontSize: ms(DESIGN.fontSize.xs),
+                        fontWeight: "700",
+                        color: colors.textMuted,
+                        alignSelf: "center",
+                      }}
+                    >
+                      +{dayChapters.length - MAX_DAY_CHIPS}
+                    </BibleText>
+                  )}
+                </View>
+              )}
             </View>
 
             <View
@@ -894,29 +1124,24 @@ export default function ReadingPlanScreen() {
                   })}
                 </BibleText>
               )}
-              {isCompleted ? (
-                <View
-                  style={[
-                    styles.checkbox,
-                    {
-                      borderWidth: 0,
-                      backgroundColor: colors.primary,
-                    },
-                  ]}
-                >
+              <TouchableOpacity
+                onPress={() => handleQuickToggleDay(item, isCompleted)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={[
+                  styles.checkbox,
+                  isCompleted
+                    ? { borderWidth: 0, backgroundColor: colors.primary }
+                    : { borderColor: isOverdue ? colors.error : colors.border },
+                ]}
+              >
+                {isCompleted && (
                   <BibleIcon
                     name="check"
                     size={ms(DESIGN.fontSize.md)}
                     color={colors.onPrimary}
                   />
-                </View>
-              ) : (
-                <BibleIcon
-                  name="chevron-right"
-                  color={colors.textMuted}
-                  size={ms(DESIGN.fontSize.xl)}
-                />
-              )}
+                )}
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </View>
@@ -929,9 +1154,11 @@ export default function ReadingPlanScreen() {
       DESIGN,
       selectedPlan,
       isDayCompleted,
+      isChapterCompleted,
       getDayCompletedAt,
       handleDayPress,
-      handleToggleDay,
+      handleQuickToggleDay,
+      handleNavigateToChapter,
       todayIndex,
     ],
   );
@@ -954,7 +1181,7 @@ export default function ReadingPlanScreen() {
     const startDateText = new Date(startedAt).toLocaleDateString("pt-BR");
     const showGoToToday = !isPaused && todayIndex >= 0;
     const showGoToLast =
-      !isPaused && lastCompletedIndex >= 0 && lastCompletedIndex !== todayIndex;
+      !isPaused && lastCompletedIndex > 0 && lastCompletedIndex !== todayIndex;
 
     return (
       <View>
@@ -1166,83 +1393,41 @@ export default function ReadingPlanScreen() {
           </View>
         )}
 
-        {showGoToLast && (
-          <TouchableOpacity
+        {(showGoToLast || showGoToToday) && (
+          <View
             style={{
-              backgroundColor: colors.primary + "15",
-              padding: ms(DESIGN.spacing.md),
-              borderRadius: ms(DESIGN.borderRadius.md),
               flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
+              gap: ms(DESIGN.spacing.sm),
               marginBottom: ms(DESIGN.spacing.md),
-              gap: ms(8),
-              borderWidth: 1,
-              borderColor: colors.primary + "30",
             }}
-            onPress={() => {
-              listRef.current?.scrollToIndex({
-                index: Math.min(lastCompletedIndex, flatDays.length - 1),
-                animated: true,
-                viewPosition: 0,
-              });
-            }}
-            activeOpacity={0.7}
           >
-            <BibleIcon
-              name="arrow-down-circle"
-              color={colors.primary}
-              size={ms(DESIGN.icon.sm)}
-            />
-            <BibleText
-              style={{
-                color: colors.primary,
-                fontWeight: "700",
-                fontSize: ms(DESIGN.fontSize.md),
-              }}
-            >
-              Ir para última leitura
-            </BibleText>
-          </TouchableOpacity>
-        )}
-        {showGoToToday && (
-          <TouchableOpacity
-            style={{
-              backgroundColor: colors.primary + "15",
-              padding: ms(DESIGN.spacing.md),
-              borderRadius: ms(DESIGN.borderRadius.md),
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: ms(DESIGN.spacing.md),
-              gap: ms(8),
-              borderWidth: 1,
-              borderColor: colors.primary + "30",
-            }}
-            onPress={() => {
-              listRef.current?.scrollToIndex({
-                index: Math.min(todayIndex, flatDays.length - 1),
-                animated: true,
-                viewPosition: 0,
-              });
-            }}
-            activeOpacity={0.7}
-          >
-            <BibleIcon
-              name="calendar"
-              color={colors.primary}
-              size={ms(DESIGN.icon.sm)}
-            />
-            <BibleText
-              style={{
-                color: colors.primary,
-                fontWeight: "700",
-                fontSize: ms(DESIGN.fontSize.md),
-              }}
-            >
-              Ir para leitura de hoje
-            </BibleText>
-          </TouchableOpacity>
+            {showGoToLast && (
+              <GoToChip
+                icon="arrow-down-circle"
+                label="Última leitura"
+                onPress={() =>
+                  listRef.current?.scrollToIndex({
+                    index: Math.min(lastCompletedIndex, flatDays.length - 1),
+                    animated: true,
+                    viewPosition: 0.3,
+                  })
+                }
+              />
+            )}
+            {showGoToToday && (
+              <GoToChip
+                icon="calendar"
+                label="Hoje"
+                onPress={() =>
+                  listRef.current?.scrollToIndex({
+                    index: Math.min(todayIndex, flatDays.length - 1),
+                    animated: true,
+                    viewPosition: 0.3,
+                  })
+                }
+              />
+            )}
+          </View>
         )}
       </View>
     );
@@ -1341,8 +1526,10 @@ export default function ReadingPlanScreen() {
             ListEmptyComponent={
               <BiblePageEmpty
                 title="Nenhum plano ativo"
-                description="Toque nos 3 pontos para adicionar um plano de leitura"
+                description="Crie um plano para acompanhar sua leitura diária"
                 icon="calendar"
+                actionLabel="Criar plano"
+                onAction={() => setIsTemplateModalVisible(true)}
               />
             }
           />
@@ -1359,7 +1546,68 @@ export default function ReadingPlanScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={detailHeader}
+            onScroll={handleDetailScroll}
+            scrollEventThrottle={100}
+            onViewableItemsChanged={handleViewableItemsChanged}
+            initialScrollIndex={initialIndex || undefined}
           />
+        )}
+        {screenView === "detail" && isScrolledDown && !!currentMonthName && (
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              left: ms(DESIGN.spacing.lg),
+              top: ms(DESIGN.spacing.sm),
+              flexDirection: "row",
+              alignItems: "center",
+              gap: ms(DESIGN.spacing.xs),
+              backgroundColor: colors.primary,
+              borderRadius: ms(DESIGN.borderRadius.full),
+              paddingVertical: ms(DESIGN.spacing.xs),
+              paddingHorizontal: ms(DESIGN.spacing.md),
+              elevation: 4,
+            }}
+            onPress={() => setIsMonthPickerVisible(true)}
+            activeOpacity={0.8}
+          >
+            <BibleText
+              style={{
+                color: colors.onPrimary,
+                fontWeight: "700",
+                fontSize: ms(DESIGN.fontSize.sm),
+              }}
+            >
+              {currentMonthName}
+            </BibleText>
+            <BibleIcon
+              name="chevron-down"
+              color={colors.onPrimary}
+              size={ms(DESIGN.fontSize.md)}
+            />
+          </TouchableOpacity>
+        )}
+        {screenView === "detail" && isScrolledDown && (
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              right: ms(DESIGN.spacing.lg),
+              bottom: ms(DESIGN.spacing.lg),
+              backgroundColor: colors.primary,
+              borderRadius: ms(DESIGN.borderRadius.full),
+              padding: ms(DESIGN.spacing.md),
+              elevation: 4,
+            }}
+            onPress={() =>
+              listRef.current?.scrollToOffset({ offset: 0, animated: true })
+            }
+            activeOpacity={0.8}
+          >
+            <BibleIcon
+              name="arrow-up"
+              color={colors.onPrimary}
+              size={ms(DESIGN.icon.sm)}
+            />
+          </TouchableOpacity>
         )}
       </View>
 
@@ -1368,6 +1616,13 @@ export default function ReadingPlanScreen() {
         onClose={() => setIsActionsVisible(false)}
         title="Ações"
         items={screenView === "detail" ? detailActionsItems : actionsItems}
+      />
+
+      <BibleActionsDrawer
+        visible={isMonthPickerVisible}
+        onClose={() => setIsMonthPickerVisible(false)}
+        title="Ir para o mês"
+        items={monthPickerItems}
       />
 
       <BibleDrawerMenu
@@ -1500,57 +1755,27 @@ export default function ReadingPlanScreen() {
           </View>
         }
         footer={
-          selectedDayInfo && selectedPlan
-            ? (() => {
-                const isAllCompleted = isDayCompleted(
-                  selectedPlan,
-                  selectedDayInfo.monthNumber,
-                  selectedDayInfo.day,
-                );
-                return (
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingVertical: ms(DESIGN.spacing.md),
-                      backgroundColor: isAllCompleted
-                        ? colors.surface
-                        : colors.primary + "15",
-                      borderWidth: 1,
-                      borderColor: isAllCompleted
-                        ? colors.border
-                        : colors.primary + "30",
-                      borderRadius: ms(DESIGN.borderRadius.md),
-                      marginHorizontal: ms(DESIGN.spacing.sm),
-                    }}
-                    onPress={() =>
-                      toggleAllChaptersForDay(
-                        selectedPlan.id,
-                        selectedDayInfo.monthNumber,
-                        selectedDayInfo,
-                        !isAllCompleted,
-                      )
-                    }
-                    activeOpacity={0.7}
-                  >
-                    <BibleText
-                      style={{
-                        color: isAllCompleted
-                          ? colors.textMuted
-                          : colors.primary,
-                        fontWeight: "700",
-                        fontSize: ms(DESIGN.fontSize.md),
-                      }}
-                    >
-                      {isAllCompleted
-                        ? "Desmarcar todos"
-                        : "Marcar todos como lidos"}
-                    </BibleText>
-                  </TouchableOpacity>
-                );
-              })()
-            : null
+          selectedDayInfo && selectedPlan ? (
+            <DayModalFooter
+              isAllCompleted={isDayCompleted(
+                selectedPlan,
+                selectedDayInfo.monthNumber,
+                selectedDayInfo.day,
+              )}
+              pendingUpTo={
+                flatDays.filter(
+                  (d) =>
+                    d.globalIndex <= selectedDayInfo.globalIndex &&
+                    !isDayCompleted(selectedPlan, d.monthNumber, d.day),
+                ).length
+              }
+              onToggle={(isAllCompleted) => {
+                handleQuickToggleDay(selectedDayInfo, isAllCompleted);
+                if (!isAllCompleted) setIsChapterModalVisible(false);
+              }}
+              onMarkUpTo={() => handleMarkUpTo(selectedDayInfo)}
+            />
+          ) : null
         }
         fullHeight={false}
       >
@@ -1648,6 +1873,114 @@ export default function ReadingPlanScreen() {
 
       <BibleToast opacity={opacity} toast={toast} />
     </View>
+  );
+}
+
+function DayModalFooter({
+  isAllCompleted,
+  pendingUpTo,
+  onToggle,
+  onMarkUpTo,
+}: {
+  isAllCompleted: boolean;
+  pendingUpTo: number;
+  onToggle: (isAllCompleted: boolean) => void;
+  onMarkUpTo: () => void;
+}) {
+  const { ms, DESIGN } = useResponsive();
+  const { colors } = useTheme();
+  return (
+    <View style={{ gap: ms(DESIGN.spacing.sm) }}>
+      <TouchableOpacity
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: ms(DESIGN.spacing.md),
+          backgroundColor: isAllCompleted
+            ? colors.surface
+            : colors.primary + "15",
+          borderWidth: 1,
+          borderColor: isAllCompleted ? colors.border : colors.primary + "30",
+          borderRadius: ms(DESIGN.borderRadius.md),
+          marginHorizontal: ms(DESIGN.spacing.sm),
+        }}
+        onPress={() => onToggle(isAllCompleted)}
+        activeOpacity={0.7}
+      >
+        <BibleText
+          style={{
+            color: isAllCompleted ? colors.textMuted : colors.primary,
+            fontWeight: "700",
+            fontSize: ms(DESIGN.fontSize.md),
+          }}
+        >
+          {isAllCompleted ? "Desmarcar todos" : "Marcar todos como lidos"}
+        </BibleText>
+      </TouchableOpacity>
+      {pendingUpTo > 1 && (
+        <TouchableOpacity
+          style={{
+            alignItems: "center",
+            paddingVertical: ms(DESIGN.spacing.sm),
+          }}
+          onPress={onMarkUpTo}
+          activeOpacity={0.7}
+        >
+          <BibleText
+            style={{
+              color: colors.primary,
+              fontWeight: "700",
+              fontSize: ms(DESIGN.fontSize.sm),
+            }}
+          >
+            Marcar este dia e os {pendingUpTo - 1} anteriores
+          </BibleText>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function GoToChip({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof BibleIcon>["name"];
+  label: string;
+  onPress: () => void;
+}) {
+  const { ms, DESIGN } = useResponsive();
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity
+      style={{
+        flex: 1,
+        backgroundColor: colors.primary + "15",
+        padding: ms(DESIGN.spacing.md),
+        borderRadius: ms(DESIGN.borderRadius.md),
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: ms(DESIGN.spacing.sm),
+        borderWidth: 1,
+        borderColor: colors.primary + "30",
+      }}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <BibleIcon name={icon} color={colors.primary} size={ms(DESIGN.icon.sm)} />
+      <BibleText
+        style={{
+          color: colors.primary,
+          fontWeight: "700",
+          fontSize: ms(DESIGN.fontSize.md),
+        }}
+      >
+        {label}
+      </BibleText>
+    </TouchableOpacity>
   );
 }
 

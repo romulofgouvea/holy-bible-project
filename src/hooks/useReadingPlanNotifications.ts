@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants, { ExecutionEnvironment } from "expo-constants";
+import { requireOptionalNativeModule } from "expo";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
 import { STORAGE_KEYS } from "../constants/storage";
@@ -9,6 +10,7 @@ import { useBiblePlan } from "./useBiblePlan";
 const NOTIFICATION_IDENTIFIER = "reading-plan-daily-reminder";
 const ANDROID_CHANNEL_ID = "reading-plan";
 const DEFAULT_TIME = "08:00";
+const TOPIC_SUBSCRIPTION_MODULE = "ExpoTopicSubscriptionModule";
 
 type NotificationsModule = typeof import("expo-notifications");
 
@@ -19,6 +21,7 @@ let notificationsModule: NotificationsModule | null = null;
 
 function getNotifications(): NotificationsModule | null {
   if (IS_EXPO_GO) return null;
+  if (!requireOptionalNativeModule(TOPIC_SUBSCRIPTION_MODULE)) return null;
   if (notificationsModule) return notificationsModule;
   try {
     const loaded: NotificationsModule = require("expo-notifications");

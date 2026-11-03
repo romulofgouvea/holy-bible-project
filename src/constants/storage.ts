@@ -37,5 +37,6 @@ export const STORAGE_KEYS = {
   AUDIO_VOICE: "bible_audio_voice",
   AUDIO_CONTINUOUS_PLAYBACK: "bible_audio_continuous_playback",
   AUDIO_AUTO_SCROLL: "bible_audio_auto_scroll",
+  AUDIO_SPEED: "bible_audio_speed",
   DOWNLOAD_QUEUE: "bible_download_queue",
 };

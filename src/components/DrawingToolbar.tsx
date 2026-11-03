@@ -38,10 +38,12 @@ export const DrawingToolbar = React.memo(
       color,
       widthIndex,
       canUndo,
+      canRedo,
       setTool,
       setIsErasing,
       cycleWidth,
       undo,
+      redo,
       clearVerses,
     } = useDrawings();
 
@@ -228,6 +230,16 @@ export const DrawingToolbar = React.memo(
                   color={canUndo ? colors.primary : colors.textMuted}
                 />,
                 !canUndo,
+              )}
+              {secondaryBtn(
+                redo,
+                "drawing-redo",
+                <BibleIcon
+                  name="corner-up-right"
+                  size={ms(DESIGN.spacing.lg)}
+                  color={canRedo ? colors.primary : colors.textMuted}
+                />,
+                !canRedo,
               )}
               {secondaryBtn(
                 () => setIsClearVisible(true),

@@ -6,6 +6,8 @@ import {
   hslToHex,
   pointsToPath,
   simplifyPoints,
+  splitPointsByRect,
+  splitStrokeAt,
   toStoredPoint,
 } from "../drawing";
 
@@ -59,5 +61,35 @@ describe("drawing utils", () => {
     expect(colorAtRatio(0.1)).toBe("#FF0000");
     expect(colorAtRatio(-1)).toBe("#FFFFFF");
     expect(colorAtRatio(2)).toMatch(/^#[0-9A-F]{6}$/);
+  });
+
+  it("splits a stroke around the erased area", () => {
+    const line = stroke([0, 0, 0.1, 0, 0.2, 0, 0.3, 0, 0.4, 0, 0.5, 0]);
+    let n = 0;
+    const pieces = splitStrokeAt(line, 250, 0, 1000, () => `p${n++}`, 20);
+    expect(pieces).toHaveLength(2);
+    expect(pieces[0].points).toEqual([0, 0, 0.1, 0, 0.2, 0]);
+    expect(pieces[1].points).toEqual([0.3, 0, 0.4, 0, 0.5, 0]);
+    expect(splitStrokeAt(stroke([0.5, 0]), 500, 0, 1000, () => "x")).toEqual(
+      [],
+    );
+  });
+
+  it("splits a stroke across verse areas keeping it continuous", () => {
+    const rects = [
+      { key: "a", x: 0, y: 0, width: 100, height: 50 },
+      { key: "b", x: 0, y: 70, width: 100, height: 50 },
+    ];
+    const runs = splitPointsByRect([10, 40, 20, 45, 30, 80, 40, 90], rects);
+    expect(runs.map((r) => r.rect.key)).toEqual(["a", "b"]);
+    expect(runs[0].points).toEqual([0.1, 40, 0.2, 45]);
+    expect(runs[1].points).toEqual([0.2, -25, 0.3, 10, 0.4, 20]);
+    const gap = splitPointsByRect([10, 60], rects);
+    expect(gap[0].rect.key).toBe("b");
+    const up = splitPointsByRect([10, 90, 20, 40], rects);
+    expect(up.map((r) => r.rect.key)).toEqual(["b", "a"]);
+    expect(up[0].points).toEqual([0.1, 20, 0.2, -30]);
+    expect(up[1].points).toEqual([0.2, 40]);
+    expect(splitPointsByRect([1, 2], [])).toEqual([]);
   });
 });

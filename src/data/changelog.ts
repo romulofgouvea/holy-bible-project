@@ -5,6 +5,16 @@ export type ChangelogItem = {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "1.4.8",
+    highlights: [
+      "Atualização para o Expo SDK 58",
+      "Correção no áudio: o Narrador 1 agora vem selecionado automaticamente, e o play funciona sem precisar escolher o narrador manualmente",
+      "Barra de áudio com mais espaço entre o ícone de configurações e a barra de progresso, e ícone de configurações com a cor de destaque",
+      "Barra de versão, livro e capítulo um pouco maior, com botões maiores, sem mudar de tamanho quando o ícone de áudio aparece",
+      "Ajustes gerais de estabilidade e desempenho",
+    ],
+  },
+  {
     version: "1.4.7",
     highlights: [
       "Novo modo de desenho: rabisque, circule e risque sobre os versículos selecionados, com paleta de cores, seletor de cor contínuo, desfazer e limpar apenas os versículos escolhidos",

@@ -39,7 +39,7 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
         container: {
           flexDirection: "row",
           alignItems: "center",
-          minHeight: ms(DESIGN.height.md),
+          minHeight: ms(DESIGN.height.lg),
           gap: ms(DESIGN.spacing.xs),
           paddingHorizontal: ms(DESIGN.spacing.md),
           paddingVertical: ms(DESIGN.spacing.xs),
@@ -49,7 +49,7 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
         },
         badge: {
           paddingHorizontal: ms(DESIGN.spacing.md),
-          paddingVertical: ms(DESIGN.spacing.xs),
+          paddingVertical: ms(DESIGN.spacing.sm),
           borderRadius: ms(DESIGN.borderRadius.sm),
           backgroundColor: readerColors.primary + "15",
         },

@@ -1,12 +1,18 @@
-﻿import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Animated } from "react-native";
 
 export type ToastType = "success" | "info" | "warning";
+
+export type ToastAction = {
+  label: string;
+  onPress: () => void;
+};
 
 export type ToastState = {
   message: string;
   type: ToastType;
   visible: boolean;
+  action?: ToastAction;
 };
 
 export function useToast() {
@@ -19,10 +25,10 @@ export function useToast() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const show = useCallback(
-    (message: string, type: ToastType = "success") => {
+    (message: string, type: ToastType = "success", action?: ToastAction) => {
       if (timer.current) clearTimeout(timer.current);
 
-      setToast({ message, type, visible: true });
+      setToast({ message, type, visible: true, action });
 
       Animated.sequence([
         Animated.timing(opacity, {
@@ -30,7 +36,7 @@ export function useToast() {
           duration: 200,
           useNativeDriver: true,
         }),
-        Animated.delay(1800),
+        Animated.delay(action ? 4000 : 1800),
         Animated.timing(opacity, {
           toValue: 0,
           duration: 300,

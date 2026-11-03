@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Animated, StyleSheet } from "react-native";
+import { Animated, StyleSheet, TouchableOpacity } from "react-native";
 import { useTheme } from "../hooks/useTheme";
 import { useResponsive } from "../hooks/useResponsive";
 import { ToastState } from "../hooks/useToast";
@@ -36,6 +36,7 @@ export function BibleToast({ toast, opacity }: BibleToastProps) {
           zIndex: 1000,
         },
         text: {
+          flex: 1,
           fontSize: ms(14),
           lineHeight: ms(20),
           fontWeight: "400",
@@ -60,6 +61,26 @@ export function BibleToast({ toast, opacity }: BibleToastProps) {
       <BibleText style={[styles.text, { color: colors.onPrimary }]}>
         {toast.message}
       </BibleText>
+      {toast.action && (
+        <TouchableOpacity
+          onPress={toast.action.onPress}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <BibleText
+            style={[
+              styles.text,
+              {
+                flex: 0,
+                color: colors.onPrimary,
+                fontWeight: "800",
+                marginLeft: ms(DESIGN.spacing.md),
+              },
+            ]}
+          >
+            {toast.action.label}
+          </BibleText>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }

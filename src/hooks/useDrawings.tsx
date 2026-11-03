@@ -24,7 +24,8 @@ import { useTheme } from "./useTheme";
 export const DRAWING_WIDTHS = [3, 6, 10];
 export const MARKER_WIDTH_FACTOR = 3;
 
-type UndoEntry = { key: string; id: string };
+type StrokeItem = { ref: VerseReference; stroke: DrawingStroke };
+type UndoGroup = { key: string; id: string }[];
 
 type DrawingContextType = {
   drawings: VerseDrawings;
@@ -36,6 +37,7 @@ type DrawingContextType = {
   strokeWidth: number;
   showDrawings: boolean;
   canUndo: boolean;
+  canRedo: boolean;
   startDrawMode: () => void;
   stopDrawMode: () => void;
   setTool: (tool: DrawingTool) => void;
@@ -44,8 +46,11 @@ type DrawingContextType = {
   cycleWidth: () => void;
   setShowDrawings: (value: boolean) => void;
   addStroke: (ref: VerseReference, stroke: DrawingStroke) => void;
+  addStrokes: (items: StrokeItem[]) => void;
   removeStroke: (key: string, id: string) => void;
+  replaceStroke: (key: string, id: string, pieces: DrawingStroke[]) => void;
   undo: () => void;
+  redo: () => void;
   clearVerses: (
     version: string,
     bookAbbrev: string,
@@ -68,6 +73,9 @@ const persist = (next: VerseDrawings) => {
     .catch(() => {});
 };
 
+const keyOf = (ref: VerseReference) =>
+  getVerseDrawingKey(ref.version, ref.bookAbbrev, ref.chapter, ref.verse);
+
 export function DrawingProvider({ children }: { children: React.ReactNode }) {
   const [drawings, setDrawings] = useState<VerseDrawings>({});
   const [isDrawMode, setIsDrawMode] = useState(false);
@@ -79,7 +87,9 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
   const [widthIndex, setWidthIndex] = useState(1);
   const [showDrawings, setShowDrawingsState] = useState(true);
   const [undoCount, setUndoCount] = useState(0);
-  const undoStackRef = useRef<UndoEntry[]>([]);
+  const [redoCount, setRedoCount] = useState(0);
+  const undoStackRef = useRef<UndoGroup[]>([]);
+  const redoStackRef = useRef<StrokeItem[][]>([]);
   const drawingsRef = useRef<VerseDrawings>({});
 
   const apply = useCallback((next: VerseDrawings) => {
@@ -87,6 +97,17 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
     setDrawings(next);
     persist(next);
   }, []);
+
+  const syncStacks = useCallback(() => {
+    setUndoCount(undoStackRef.current.length);
+    setRedoCount(redoStackRef.current.length);
+  }, []);
+
+  const resetStacks = useCallback(() => {
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    syncStacks();
+  }, [syncStacks]);
 
   const load = useCallback(async () => {
     try {
@@ -113,13 +134,12 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       drawingsRef.current = parsed;
       setDrawings(parsed);
       setShowDrawingsState(show !== "false");
-      undoStackRef.current = [];
-      setUndoCount(0);
+      resetStacks();
     } catch {
       drawingsRef.current = {};
       setDrawings({});
     }
-  }, []);
+  }, [resetStacks]);
 
   useEffect(() => {
     load();
@@ -127,25 +147,42 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [load]);
 
-  const addStroke = useCallback(
-    (ref: VerseReference, stroke: DrawingStroke) => {
-      const current = drawingsRef.current;
-      const key = getVerseDrawingKey(
-        ref.version,
-        ref.bookAbbrev,
-        ref.chapter,
-        ref.verse,
-      );
-      const entry: DrawingEntry = {
-        ...ref,
-        timestamp: Date.now(),
-        strokes: [...(current[key]?.strokes ?? []), stroke],
-      };
-      apply({ ...current, [key]: entry });
-      undoStackRef.current = [...undoStackRef.current, { key, id: stroke.id }];
-      setUndoCount(undoStackRef.current.length);
+  const insertStrokes = useCallback(
+    (items: StrokeItem[]) => {
+      const next = { ...drawingsRef.current };
+      const now = Date.now();
+      items.forEach(({ ref, stroke }) => {
+        const key = keyOf(ref);
+        const entry: DrawingEntry = {
+          ...ref,
+          timestamp: now,
+          strokes: [...(next[key]?.strokes ?? []), stroke],
+        };
+        next[key] = entry;
+      });
+      apply(next);
+      undoStackRef.current = [
+        ...undoStackRef.current,
+        items.map(({ ref, stroke }) => ({ key: keyOf(ref), id: stroke.id })),
+      ];
     },
     [apply],
+  );
+
+  const addStrokes = useCallback(
+    (items: StrokeItem[]) => {
+      if (items.length === 0) return;
+      redoStackRef.current = [];
+      insertStrokes(items);
+      syncStacks();
+    },
+    [insertStrokes, syncStacks],
+  );
+
+  const addStroke = useCallback(
+    (ref: VerseReference, stroke: DrawingStroke) =>
+      addStrokes([{ ref, stroke }]),
+    [addStrokes],
   );
 
   const removeStroke = useCallback(
@@ -162,13 +199,53 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
     [apply],
   );
 
+  const replaceStroke = useCallback(
+    (key: string, id: string, pieces: DrawingStroke[]) => {
+      const current = drawingsRef.current;
+      const entry = current[key];
+      if (!entry) return;
+      const strokes = entry.strokes.flatMap((s) =>
+        s.id === id ? pieces : [s],
+      );
+      const next = { ...current };
+      if (strokes.length === 0) delete next[key];
+      else next[key] = { ...entry, timestamp: Date.now(), strokes };
+      apply(next);
+    },
+    [apply],
+  );
+
   const undo = useCallback(() => {
-    const last = undoStackRef.current[undoStackRef.current.length - 1];
-    if (!last) return;
+    const group = undoStackRef.current[undoStackRef.current.length - 1];
+    if (!group) return;
     undoStackRef.current = undoStackRef.current.slice(0, -1);
-    setUndoCount(undoStackRef.current.length);
-    removeStroke(last.key, last.id);
-  }, [removeStroke]);
+    const next = { ...drawingsRef.current };
+    const removed: StrokeItem[] = [];
+    group.forEach(({ key, id }) => {
+      const entry = next[key];
+      const stroke = entry?.strokes.find((s) => s.id === id);
+      if (!entry || !stroke) return;
+      const { version, bookAbbrev, bookName, chapter, verse } = entry;
+      removed.push({
+        ref: { version, bookAbbrev, bookName, chapter, verse },
+        stroke,
+      });
+      const rest = entry.strokes.filter((s) => s.id !== id);
+      if (rest.length === 0) delete next[key];
+      else next[key] = { ...entry, timestamp: Date.now(), strokes: rest };
+    });
+    apply(next);
+    if (removed.length > 0) redoStackRef.current.push(removed);
+    syncStacks();
+  }, [apply, syncStacks]);
+
+  const redo = useCallback(() => {
+    const items = redoStackRef.current[redoStackRef.current.length - 1];
+    if (!items) return;
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
+    insertStrokes(items);
+    syncStacks();
+  }, [insertStrokes, syncStacks]);
 
   const clearVerses = useCallback(
     (
@@ -188,12 +265,15 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
         if (!keys.has(k)) next[k] = current[k];
       });
       apply(next);
-      undoStackRef.current = undoStackRef.current.filter(
-        (entry) => !keys.has(entry.key),
-      );
-      setUndoCount(undoStackRef.current.length);
+      undoStackRef.current = undoStackRef.current
+        .map((group) => group.filter((entry) => !keys.has(entry.key)))
+        .filter((group) => group.length > 0);
+      redoStackRef.current = redoStackRef.current
+        .map((items) => items.filter((item) => !keys.has(keyOf(item.ref))))
+        .filter((items) => items.length > 0);
+      syncStacks();
     },
-    [apply],
+    [apply, syncStacks],
   );
 
   const setColor = useCallback((value: string) => {
@@ -220,11 +300,10 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
 
   const startDrawMode = useCallback(() => {
     setIsErasing(false);
-    undoStackRef.current = [];
-    setUndoCount(0);
+    resetStacks();
     setIsDrawMode(true);
     setShowDrawingsState(true);
-  }, []);
+  }, [resetStacks]);
 
   const stopDrawMode = useCallback(() => setIsDrawMode(false), []);
 
@@ -242,6 +321,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       strokeWidth,
       showDrawings,
       canUndo: undoCount > 0,
+      canRedo: redoCount > 0,
       startDrawMode,
       stopDrawMode,
       setTool,
@@ -250,8 +330,11 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       cycleWidth,
       setShowDrawings,
       addStroke,
+      addStrokes,
       removeStroke,
+      replaceStroke,
       undo,
+      redo,
       clearVerses,
     }),
     [
@@ -264,6 +347,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       strokeWidth,
       showDrawings,
       undoCount,
+      redoCount,
       startDrawMode,
       stopDrawMode,
       setTool,
@@ -271,8 +355,11 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       cycleWidth,
       setShowDrawings,
       addStroke,
+      addStrokes,
       removeStroke,
+      replaceStroke,
       undo,
+      redo,
       clearVerses,
     ],
   );

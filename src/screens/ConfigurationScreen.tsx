@@ -77,6 +77,7 @@ export default function ConfigurationScreen() {
     toggleHaptics,
   } = useTheme();
   const {
+    isSupported: isReadingPlanNotificationsSupported,
     enabled: isReadingPlanNotificationsEnabled,
     time: readingPlanNotificationTime,
     setEnabled: setReadingPlanNotificationsEnabled,
@@ -563,7 +564,11 @@ export default function ConfigurationScreen() {
           />
           <SettingsItem
             label="Lembrete de leitura"
-            description="Receba uma notificação para não perder o dia"
+            description={
+              isReadingPlanNotificationsSupported
+                ? "Receba uma notificação para não perder o dia"
+                : "Indisponível no Expo Go. Use o app instalado."
+            }
             icon="bell"
             onPress={() =>
               handleToggleReadingPlanNotifications(

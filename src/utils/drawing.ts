@@ -163,6 +163,96 @@ export const strokeHitsPoint = (
   return false;
 };
 
+export const splitStrokeAt = (
+  stroke: DrawingStroke,
+  x: number,
+  y: number,
+  width: number,
+  makeId: () => string,
+  radius: number = ERASE_RADIUS,
+): DrawingStroke[] => {
+  const pts = stroke.points;
+  if (pts.length <= 2) return [];
+  const reach = radius + stroke.width / 2;
+  const pieces: DrawingStroke[] = [];
+  let run: number[] = [];
+  const flush = () => {
+    if (run.length >= 4) pieces.push({ ...stroke, id: makeId(), points: run });
+    run = [];
+  };
+  for (let i = 0; i < pts.length - 2; i += 2) {
+    const isHit =
+      distanceToSegment(
+        x,
+        y,
+        pts[i] * width,
+        pts[i + 1],
+        pts[i + 2] * width,
+        pts[i + 3],
+      ) <= reach;
+    if (isHit) {
+      flush();
+    } else {
+      if (run.length === 0) run.push(pts[i], pts[i + 1]);
+      run.push(pts[i + 2], pts[i + 3]);
+    }
+  }
+  flush();
+  return pieces;
+};
+
+export type VerseRect = {
+  key: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+const rectIndexAt = (rects: VerseRect[], y: number) => {
+  const index = rects.findIndex((r) => y < r.y + r.height);
+  return index < 0 ? rects.length - 1 : index;
+};
+
+const toLocalPoint = (rect: VerseRect, px: number, py: number) => [
+  roundTo((px - rect.x) / rect.width, 4),
+  roundTo(py - rect.y, 1),
+];
+
+export const splitPointsByRect = <T extends VerseRect>(
+  points: number[],
+  rects: T[],
+) => {
+  const runs: { rect: T; points: number[] }[] = [];
+  if (rects.length === 0) return runs;
+  const sorted = [...rects].sort((a, b) => a.y - b.y);
+  for (let i = 0; i < points.length; i += 2) {
+    const px = points[i];
+    const py = points[i + 1];
+    const rect = sorted[rectIndexAt(sorted, py)];
+    const last = runs[runs.length - 1];
+    if (last && last.rect.key === rect.key) {
+      last.points.push(...toLocalPoint(rect, px, py));
+      continue;
+    }
+    const current = toLocalPoint(rect, px, py);
+    if (!last) {
+      runs.push({ rect, points: current });
+    } else if (rect.y > last.rect.y) {
+      const prevX = points[i - 2];
+      const prevY = points[i - 1];
+      runs.push({
+        rect,
+        points: [...toLocalPoint(rect, prevX, prevY), ...current],
+      });
+    } else {
+      last.points.push(...toLocalPoint(last.rect, px, py));
+      runs.push({ rect, points: current });
+    }
+  }
+  return runs;
+};
+
 export const findStrokeAt = (
   strokes: DrawingStroke[],
   x: number,

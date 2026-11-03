@@ -26,6 +26,7 @@ import { BibleSkeleton } from "../components/BibleSkeleton";
 import { BibleText } from "../components/BibleText";
 import { BibleToast } from "../components/BibleToast";
 import { BibleLocationBar } from "../components/BibleLocationBar";
+import { DrawingCaptureLayer } from "../components/DrawingCaptureLayer";
 import { DrawingToolbar } from "../components/DrawingToolbar";
 import { useDrawings } from "../hooks/useDrawings";
 import { BibleTopBar } from "../components/BibleTopBar";
@@ -49,6 +50,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useToast } from "../hooks/useToast";
 
 const AUDIO_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 100 };
+const SCROLL_TOP_BUTTON_OFFSET = 600;
 
 export default function BibleScreen() {
   const {
@@ -149,6 +151,7 @@ export default function BibleScreen() {
   const navVisibleAnim = useRef(new Animated.Value(1)).current;
   const navVisibleRef = useRef(true);
   const [isNavInteractive, setIsNavInteractive] = useState(true);
+  const [isReaderScrolledDown, setIsReaderScrolledDown] = useState(false);
 
   const setNavVisible = useCallback(
     (visible: boolean) => {
@@ -192,6 +195,7 @@ export default function BibleScreen() {
     (nativeEvent: any) => {
       const offsetY = nativeEvent.contentOffset.y;
       const atEnd = isAtScrollEnd(nativeEvent);
+      setIsReaderScrolledDown(offsetY > ms(SCROLL_TOP_BUTTON_OFFSET));
 
       if (!hasTrackedScroll.current) {
         hasTrackedScroll.current = true;
@@ -210,7 +214,7 @@ export default function BibleScreen() {
       }
       lastScrollY.current = offsetY;
     },
-    [setNavVisible, isAtScrollEnd],
+    [setNavVisible, isAtScrollEnd, ms],
   );
 
   const handleReaderScroll = useCallback(
@@ -1289,6 +1293,8 @@ export default function BibleScreen() {
             </View>
           )}
 
+          {isDrawMode && <DrawingCaptureLayer />}
+
           {!isActionSheetVisible && !isAudioModalVisible && !isDrawMode && (
             <Animated.View
               pointerEvents={isNavInteractive ? "box-none" : "none"}
@@ -1316,6 +1322,39 @@ export default function BibleScreen() {
                   backgroundColor={navBg}
                   borderRadius={ms(DESIGN.borderRadius.md)}
                   onPress={() => handleNavigateChapter(-1)}
+                  activeOpacity={0.8}
+                  style={{
+                    elevation: 4,
+                    shadowColor: colors.shadow,
+                    shadowOffset: { width: 0, height: ms(DESIGN.spacing.tiny) },
+                    shadowOpacity: 0.25,
+                    shadowRadius: ms(DESIGN.spacing.xs),
+                  }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: navBtnSize,
+                    height: navBtnSize,
+                  }}
+                  pointerEvents="none"
+                />
+              )}
+
+              {isReaderScrolledDown ? (
+                <BibleIcon
+                  name="arrow-up"
+                  size={navIconSize}
+                  containerSize={navBtnSize}
+                  color={navIcon}
+                  backgroundColor={navBg}
+                  borderRadius={ms(DESIGN.borderRadius.md)}
+                  onPress={() =>
+                    sectionListRef.current?.scrollToOffset({
+                      offset: 0,
+                      animated: true,
+                    })
+                  }
                   activeOpacity={0.8}
                   style={{
                     elevation: 4,
