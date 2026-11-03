@@ -1,5 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { DeviceEventEmitter } from "react-native";
 import { STORAGE_KEYS } from "../constants/storage";
 import { ActiveBiblePlan } from "../models";
@@ -35,9 +41,68 @@ function parsePlans(raw: string | null): ActiveBiblePlan[] {
   }
 }
 
-export function useBiblePlan() {
+export type PlanReadingSession = {
+  planId: string;
+  monthNumber: number;
+  day: number;
+};
+
+function applyChapter(
+  p: ActiveBiblePlan,
+  monthNumber: number,
+  dayInfo: any,
+  abbrev: string,
+  chapter: number,
+  status?: boolean,
+): ActiveBiblePlan {
+  const key = chapterKey(monthNumber, dayInfo.day, abbrev, chapter);
+  const chapters = { ...(p.completedChapters || {}) };
+  const shouldComplete = status ?? !chapters[key]?.isCompleted;
+  if (shouldComplete) {
+    chapters[key] = { isCompleted: true, completedAt: Date.now() };
+  } else {
+    delete chapters[key];
+  }
+
+  let isDayFullyRead = true;
+  for (const book of dayInfo.books) {
+    for (const chap of book.chapters || []) {
+      if (
+        !chapters[chapterKey(monthNumber, dayInfo.day, book.abbrev, chap)]
+          ?.isCompleted
+      ) {
+        isDayFullyRead = false;
+        break;
+      }
+    }
+    if (!isDayFullyRead) break;
+  }
+
+  const dKey = dayKey(monthNumber, dayInfo.day);
+  const days = { ...p.completedDays };
+  if (isDayFullyRead) {
+    days[dKey] = { isCompleted: true, completedAt: Date.now() };
+  } else {
+    delete days[dKey];
+  }
+
+  return { ...p, completedChapters: chapters, completedDays: days };
+}
+
+function useBiblePlanState() {
   const [activePlans, setActivePlans] = useState<ActiveBiblePlan[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [planReading, setPlanReading] = useState<PlanReadingSession | null>(
+    null,
+  );
+
+  const startPlanReading = useCallback(
+    (planId: string, monthNumber: number, day: number) =>
+      setPlanReading({ planId, monthNumber, day }),
+    [],
+  );
+
+  const stopPlanReading = useCallback(() => setPlanReading(null), []);
 
   const reloadFromStorage = useCallback(async () => {
     try {
@@ -133,43 +198,32 @@ export function useBiblePlan() {
       abbrev: string,
       chapter: number,
     ) => {
-      const key = chapterKey(monthNumber, dayInfo.day, abbrev, chapter);
       persist(
-        activePlans.map((p) => {
-          if (p.id !== planId) return p;
-          const chapters = { ...(p.completedChapters || {}) };
-          if (chapters[key]?.isCompleted) {
-            delete chapters[key];
-          } else {
-            chapters[key] = { isCompleted: true, completedAt: Date.now() };
-          }
+        activePlans.map((p) =>
+          p.id === planId
+            ? applyChapter(p, monthNumber, dayInfo, abbrev, chapter)
+            : p,
+        ),
+      );
+    },
+    [activePlans, persist],
+  );
 
-          // check if day is fully read
-          let isDayFullyRead = true;
-          for (const book of dayInfo.books) {
-            for (const chap of book.chapters || []) {
-              if (
-                !chapters[
-                  chapterKey(monthNumber, dayInfo.day, book.abbrev, chap)
-                ]?.isCompleted
-              ) {
-                isDayFullyRead = false;
-                break;
-              }
-            }
-            if (!isDayFullyRead) break;
-          }
-
-          const dKey = dayKey(monthNumber, dayInfo.day);
-          const days = { ...p.completedDays };
-          if (isDayFullyRead) {
-            days[dKey] = { isCompleted: true, completedAt: Date.now() };
-          } else {
-            delete days[dKey];
-          }
-
-          return { ...p, completedChapters: chapters, completedDays: days };
-        }),
+  const setChapterCompleted = useCallback(
+    (
+      planId: string,
+      monthNumber: number,
+      dayInfo: any,
+      abbrev: string,
+      chapter: number,
+      status: boolean,
+    ) => {
+      persist(
+        activePlans.map((p) =>
+          p.id === planId
+            ? applyChapter(p, monthNumber, dayInfo, abbrev, chapter, status)
+            : p,
+        ),
       );
     },
     [activePlans, persist],
@@ -446,6 +500,10 @@ export function useBiblePlan() {
     createBiblePlan,
     toggleDay,
     toggleChapter,
+    setChapterCompleted,
+    planReading,
+    startPlanReading,
+    stopPlanReading,
     toggleAllChaptersForDay,
     setDaysCompleted,
     isDayCompleted,
@@ -461,4 +519,24 @@ export function useBiblePlan() {
     getBiblePlanStreak,
     reloadFromStorage,
   };
+}
+
+type BiblePlanContextType = ReturnType<typeof useBiblePlanState>;
+
+const BiblePlanContext = createContext<BiblePlanContextType | null>(null);
+
+export function BiblePlanProvider({ children }: { children: React.ReactNode }) {
+  const value = useBiblePlanState();
+  return (
+    <BiblePlanContext.Provider value={value}>
+      {children}
+    </BiblePlanContext.Provider>
+  );
+}
+
+export function useBiblePlan() {
+  const ctx = useContext(BiblePlanContext);
+  if (!ctx)
+    throw new Error("useBiblePlan must be used within BiblePlanProvider");
+  return ctx;
 }
