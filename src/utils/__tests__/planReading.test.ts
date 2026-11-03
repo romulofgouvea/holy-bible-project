@@ -1,5 +1,9 @@
 import { BiblePlanTemplate } from "../../models/BiblePlanModels";
-import { findNextPlanReading, getDayChapters } from "../planReading";
+import {
+  findNextPlanReading,
+  getDayChapters,
+  getReadingStreak,
+} from "../planReading";
 
 const template: BiblePlanTemplate = {
   id: "t",
@@ -99,5 +103,23 @@ describe("plan reading", () => {
     expect(
       findNextPlanReading(template, 9, 9, "ex", 1, nothingRead),
     ).toBeNull();
+  });
+});
+
+describe("getReadingStreak", () => {
+  const now = new Date(2026, 5, 10, 15).getTime();
+  const at = (day: number) => new Date(2026, 5, day, 9).getTime();
+
+  it("counts consecutive days ending today", () => {
+    expect(getReadingStreak([at(10), at(9), at(8), at(6)], now)).toBe(3);
+  });
+
+  it("keeps the streak alive when today is still pending", () => {
+    expect(getReadingStreak([at(9), at(8)], now)).toBe(2);
+  });
+
+  it("is zero after a missed day", () => {
+    expect(getReadingStreak([at(7), at(8)], now)).toBe(0);
+    expect(getReadingStreak([], now)).toBe(0);
   });
 });

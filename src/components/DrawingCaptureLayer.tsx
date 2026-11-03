@@ -15,12 +15,10 @@ import Svg from "react-native-svg";
 import { useDrawings } from "../hooks/useDrawings";
 import { DrawingStroke } from "../models";
 import {
-  ERASE_RADIUS,
   findStrokeAt,
   makeStrokeId,
   simplifyPoints,
   splitPointsByRect,
-  splitStrokeAt,
 } from "../utils/drawing";
 import {
   MeasuredLayer,
@@ -30,7 +28,11 @@ import {
 import { impactLight } from "../utils/haptics";
 import { StrokePath } from "./VerseDrawingLayer";
 
-export const DrawingCaptureLayer = React.memo(() => {
+type Props = {
+  onScrollBy?: (dy: number) => void;
+};
+
+export const DrawingCaptureLayer = React.memo(({ onScrollBy }: Props) => {
   const {
     drawings,
     isErasing,
@@ -45,6 +47,8 @@ export const DrawingCaptureLayer = React.memo(() => {
   const layersRef = useRef<MeasuredLayer[]>([]);
   const liveRef = useRef<number[]>([]);
   const drawingsRef = useRef(drawings);
+  const isScrollingRef = useRef(false);
+  const lastMidYRef = useRef(0);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [livePoints, setLivePoints] = useState<number[]>([]);
 
@@ -73,27 +77,29 @@ export const DrawingCaptureLayer = React.memo(() => {
     });
   }, []);
 
-  const eraseAt = useCallback(
+  const eraseWholeAt = useCallback(
     (x: number, y: number) => {
-      layersRef.current.forEach((layer) => {
-        if (
-          y < layer.y - ERASE_RADIUS ||
-          y > layer.y + layer.height + ERASE_RADIUS
-        )
-          return;
+      for (const layer of layersRef.current) {
         const strokes = drawingsRef.current[layer.key]?.strokes;
-        if (!strokes) return;
-        const lx = x - layer.x;
-        const ly = y - layer.y;
-        const hit = findStrokeAt(strokes, lx, ly, layer.width);
-        if (!hit) return;
-        impactLight();
-        replaceStroke(
-          layer.key,
-          hit.id,
-          splitStrokeAt(hit, lx, ly, layer.width, makeStrokeId),
+        if (!strokes) continue;
+        const hit = findStrokeAt(
+          strokes,
+          x - layer.x,
+          y - layer.y,
+          layer.width,
         );
-      });
+        if (!hit) continue;
+        const targets = Object.entries(drawingsRef.current).flatMap(
+          ([key, entry]) =>
+            entry.strokes
+              .filter((s) =>
+                hit.groupId ? s.groupId === hit.groupId : s.id === hit.id,
+              )
+              .map((s) => ({ key, id: s.id })),
+        );
+        targets.forEach(({ key, id }) => replaceStroke(key, id, []));
+        return;
+      }
     },
     [replaceStroke],
   );
@@ -103,42 +109,60 @@ export const DrawingCaptureLayer = React.memo(() => {
       const { locationX, locationY, pageX, pageY } = e.nativeEvent;
       originRef.current = { x: pageX - locationX, y: pageY - locationY };
       measure();
+      isScrollingRef.current = false;
       if (isErasing) {
-        eraseAt(locationX, locationY);
+        eraseWholeAt(locationX, locationY);
         return;
       }
       impactLight();
       liveRef.current = [locationX, locationY];
       setLivePoints(liveRef.current);
     },
-    [isErasing, measure, eraseAt],
+    [isErasing, measure, eraseWholeAt],
   );
 
   const handleMove = useCallback(
     (e: GestureResponderEvent) => {
+      const { touches } = e.nativeEvent;
+      if (touches.length >= 2) {
+        const midY = (touches[0].pageY + touches[1].pageY) / 2;
+        if (isScrollingRef.current) onScrollBy?.(midY - lastMidYRef.current);
+        else {
+          isScrollingRef.current = true;
+          liveRef.current = [];
+          setLivePoints([]);
+        }
+        lastMidYRef.current = midY;
+        return;
+      }
+      if (isScrollingRef.current) return;
       const x = e.nativeEvent.pageX - originRef.current.x;
       const y = e.nativeEvent.pageY - originRef.current.y;
       if (isErasing) {
-        eraseAt(x, y);
+        eraseWholeAt(x, y);
         return;
       }
       if (liveRef.current.length === 0) return;
       liveRef.current = [...liveRef.current, x, y];
       setLivePoints(liveRef.current);
     },
-    [isErasing, eraseAt],
+    [isErasing, eraseWholeAt, onScrollBy],
   );
 
   const handleEnd = useCallback(() => {
     const points = liveRef.current;
     liveRef.current = [];
     setLivePoints([]);
-    if (isErasing || points.length < 2) return;
+    const wasScrolling = isScrollingRef.current;
+    isScrollingRef.current = false;
+    if (isErasing || wasScrolling || points.length < 2) return;
+    const groupId = makeStrokeId();
     const items = splitPointsByRect(points, layersRef.current).map(
       ({ rect, points: local }) => ({
         ref: rect.ref,
         stroke: {
           id: makeStrokeId(),
+          groupId,
           tool,
           color,
           width: strokeWidth,

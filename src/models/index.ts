@@ -32,6 +32,7 @@ export interface DrawingStroke {
   color: string;
   width: number;
   points: number[];
+  groupId?: string;
 }
 
 export type VerseReference = {

@@ -8,7 +8,7 @@ import { BibleIcon } from "./BibleIcon";
 import { BibleText } from "./BibleText";
 
 type Props = {
-  onMessage: (message: string) => void;
+  onMessage: (message: string, undo?: () => void) => void;
 };
 
 export const PlanReadingFinishCard = React.memo(({ onMessage }: Props) => {
@@ -43,8 +43,10 @@ export const PlanReadingFinishCard = React.memo(({ onMessage }: Props) => {
     }
     const result = completeAndGoNext();
     if (!result) return;
-    if (result.isPlanDone) onMessage("Plano concluído. Parabéns!");
-    else if (result.isDayDone) onMessage("Leitura do dia concluída");
+    if (result.isPlanDone) onMessage("Plano concluído. Parabéns!", result.undo);
+    else if (result.isDayDone)
+      onMessage("Leitura do dia concluída", result.undo);
+    else onMessage("Capítulo concluído", result.undo);
   };
 
   const nextSuffix = nextIsNewDay ? ` (Dia ${nextDayNumber})` : "";

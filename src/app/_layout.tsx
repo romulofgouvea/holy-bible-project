@@ -15,6 +15,7 @@ import { DownloadsProvider } from "../hooks/useDownloads";
 import { ReaderSettingsProvider } from "../hooks/useReaderSettings";
 import { ThemeProvider, useTheme } from "../hooks/useTheme";
 import { BiblePlanProvider } from "../hooks/useBiblePlan";
+import { useReadingPlanNotifications } from "../hooks/useReadingPlanNotifications";
 import { DrawingProvider } from "../hooks/useDrawings";
 import { BibleModalProvider } from "../hooks/useBibleModals";
 import { BibleProvider, useBible } from "../hooks/useBible";
@@ -44,6 +45,7 @@ function AppLayout() {
   const { colors } = useTheme();
   const { isReady } = useBible();
   const isRestored = useRoutePersistence();
+  useReadingPlanNotifications();
 
   useEffect(() => {
     if (Platform.OS === "web") {

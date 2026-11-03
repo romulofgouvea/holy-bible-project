@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DRAWING_WIDTHS, useDrawings } from "../hooks/useDrawings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
@@ -28,7 +27,6 @@ export const DrawingToolbar = React.memo(
   ({ version, bookAbbrev, chapter, verses, onDone }: Props) => {
     const { ms, DESIGN } = useResponsive();
     const { colors } = useTheme();
-    const insets = useSafeAreaInsets();
     const [isSliderOpen, setIsSliderOpen] = useState(false);
     const [isClearVisible, setIsClearVisible] = useState(false);
     const [barHeight, setBarHeight] = useState(0);
@@ -56,7 +54,7 @@ export const DrawingToolbar = React.memo(
             left: 0,
             right: 0,
             paddingTop: ms(DESIGN.spacing.md),
-            paddingBottom: ms(DESIGN.spacing.md) + insets.bottom,
+            paddingBottom: ms(DESIGN.spacing.md),
             borderTopLeftRadius: ms(DESIGN.borderRadius.xl),
             borderTopRightRadius: ms(DESIGN.borderRadius.xl),
             borderWidth: 1,
@@ -85,7 +83,6 @@ export const DrawingToolbar = React.memo(
             width: ms(DESIGN.spacing.xl),
             height: ms(DESIGN.spacing.xl),
             borderRadius: ms(DESIGN.borderRadius.full),
-            borderWidth: 2,
           },
           widthDot: {
             borderRadius: ms(DESIGN.borderRadius.full),
@@ -102,7 +99,7 @@ export const DrawingToolbar = React.memo(
             fontSize: ms(DESIGN.fontSize.md),
           },
         }),
-      [ms, DESIGN, insets.bottom],
+      [ms, DESIGN],
     );
 
     const handleBarLayout = (e: LayoutChangeEvent) => {
@@ -198,12 +195,7 @@ export const DrawingToolbar = React.memo(
               {secondaryBtn(
                 () => setIsSliderOpen((prev) => !prev),
                 "drawing-color",
-                <View
-                  style={[
-                    styles.colorDot,
-                    { backgroundColor: color, borderColor: colors.primary },
-                  ]}
-                />,
+                <View style={[styles.colorDot, { backgroundColor: color }]} />,
               )}
               {secondaryBtn(
                 cycleWidth,

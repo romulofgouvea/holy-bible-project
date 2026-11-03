@@ -32,6 +32,12 @@ import { ROUTE_LABELS, ROUTES } from "../constants/routes";
 import { BIBLE_PLAN_TEMPLATES } from "../data/bible-plan/biblePlanRegistry";
 import { useBible } from "../hooks/useBible";
 import { impactMedium } from "../utils/haptics";
+import {
+  getCompletionTimes,
+  getReadingStreak,
+  STREAK_MILESTONES,
+} from "../utils/planReading";
+import { getPlanPosition } from "../utils/planReadingPositions";
 import { useBiblePlan } from "../hooks/useBiblePlan";
 import { useReadingPlanNotifications } from "../hooks/useReadingPlanNotifications";
 import { useResponsive } from "../hooks/useResponsive";
@@ -135,6 +141,13 @@ export default function ReadingPlanScreen() {
   const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [currentMonthNumber, setCurrentMonthNumber] = useState(0);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
+  const [chipMenu, setChipMenu] = useState<{
+    abbrev: string;
+    chapter: number;
+    label: string;
+    isDone: boolean;
+    day: FlatDayItem;
+  } | null>(null);
   const [initialIndex, setInitialIndex] = useState(planViewMemory.index);
   const setDaysCompletedRef = useRef(setDaysCompleted);
 
@@ -421,7 +434,11 @@ export default function ReadingPlanScreen() {
         startPlanReading(selectedPlan.id, day.monthNumber, day.day);
       }
       setIsChapterModalVisible(false);
-      navigateTo({ book: bookAbbrev, chapter, verse: 1 });
+      navigateTo({
+        book: bookAbbrev,
+        chapter,
+        verse: getPlanPosition(bookAbbrev, chapter),
+      });
       router.navigate(ROUTES.BIBLE as any);
     },
     [navigateTo, router, selectedPlan, startPlanReading],
@@ -435,13 +452,24 @@ export default function ReadingPlanScreen() {
       message: string,
     ) => {
       setDaysCompletedRef.current(planId, entries, status);
-      if (status) impactMedium();
-      show(message, "success", {
+      let finalMessage = message;
+      if (status) {
+        impactMedium();
+        const times = selectedPlan ? getCompletionTimes(selectedPlan) : [];
+        const streak = getReadingStreak([...times, Date.now()]);
+        if (
+          STREAK_MILESTONES.includes(streak) &&
+          streak > getReadingStreak(times)
+        ) {
+          finalMessage = `${streak} dias seguidos! ${message}`;
+        }
+      }
+      show(finalMessage, "success", {
         label: "Desfazer",
         onPress: () => setDaysCompletedRef.current(planId, entries, !status),
       });
     },
-    [show],
+    [show, selectedPlan],
   );
 
   const handleQuickToggleDay = useCallback(
@@ -496,6 +524,31 @@ export default function ReadingPlanScreen() {
     },
     [flatDays],
   );
+
+  const chipMenuItems = useMemo(() => {
+    if (!chipMenu || !selectedPlan) return [];
+    const { abbrev, chapter, isDone, day } = chipMenu;
+    return [
+      {
+        icon: "book-open" as const,
+        label: "Ler agora",
+        onPress: () => {
+          setChipMenu(null);
+          handleNavigateToChapter(abbrev, chapter, day);
+        },
+      },
+      {
+        icon: (isDone ? "x-circle" : "check-circle") as
+          | "x-circle"
+          | "check-circle",
+        label: isDone ? "Marcar como não lido" : "Marcar como lido",
+        onPress: () => {
+          setChipMenu(null);
+          toggleChapter(selectedPlan.id, day.monthNumber, day, abbrev, chapter);
+        },
+      },
+    ];
+  }, [chipMenu, selectedPlan, handleNavigateToChapter, toggleChapter]);
 
   const monthPickerItems = useMemo(
     () =>
@@ -1065,6 +1118,10 @@ export default function ReadingPlanScreen() {
                       onPress={() =>
                         handleNavigateToChapter(c.abbrev, c.chapter, item)
                       }
+                      onLongPress={() => {
+                        impactMedium();
+                        setChipMenu({ ...c, day: item });
+                      }}
                       style={{
                         backgroundColor: c.isDone
                           ? colors.primary
@@ -1183,6 +1240,7 @@ export default function ReadingPlanScreen() {
       completedAtMs,
     } = selectedStats;
     const startDateText = new Date(startedAt).toLocaleDateString("pt-BR");
+    const streak = getReadingStreak(getCompletionTimes(selectedPlan));
     const showGoToToday = !isPaused && todayIndex >= 0;
     const showGoToLast =
       !isPaused && lastCompletedIndex > 0 && lastCompletedIndex !== todayIndex;
@@ -1229,6 +1287,32 @@ export default function ReadingPlanScreen() {
             >
               {selectedPlan.title}
             </BibleText>
+
+            {streak >= 2 && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: ms(DESIGN.spacing.xs),
+                  marginTop: ms(DESIGN.spacing.xs),
+                }}
+              >
+                <BibleIcon
+                  name="zap"
+                  size={ms(DESIGN.fontSize.md)}
+                  color={colors.primary}
+                />
+                <BibleText
+                  style={{
+                    fontSize: ms(DESIGN.fontSize.sm),
+                    fontWeight: "700",
+                    color: colors.primary,
+                  }}
+                >
+                  {streak} dias seguidos
+                </BibleText>
+              </View>
+            )}
 
             <View style={{ marginTop: ms(16), marginBottom: ms(16) }}>
               <View
@@ -1624,6 +1708,13 @@ export default function ReadingPlanScreen() {
       />
 
       <BibleActionsDrawer
+        visible={chipMenu !== null}
+        onClose={() => setChipMenu(null)}
+        title={chipMenu?.label ?? ""}
+        items={chipMenuItems}
+      />
+
+      <BibleActionsDrawer
         visible={isMonthPickerVisible}
         onClose={() => setIsMonthPickerVisible(false)}
         title="Ir para o mês"
@@ -1902,7 +1993,7 @@ function DayModalFooter({
           fontSize: ms(DESIGN.fontSize.sm),
         }}
       >
-        Marcar este dia e os {pendingUpTo - 1} anteriores
+        Marcar como lidos até este dia ({pendingUpTo} dias)
       </BibleText>
     </TouchableOpacity>
   );

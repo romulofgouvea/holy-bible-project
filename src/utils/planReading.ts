@@ -66,3 +66,31 @@ export const findNextPlanReading = (
     ),
   };
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const startOfDay = (ms: number) => new Date(ms).setHours(0, 0, 0, 0);
+
+export const getReadingStreak = (
+  completedAts: number[],
+  now: number = Date.now(),
+): number => {
+  const days = new Set(completedAts.map(startOfDay));
+  const today = startOfDay(now);
+  let cursor = days.has(today) ? today : today - DAY_MS;
+  let streak = 0;
+  while (days.has(cursor)) {
+    streak++;
+    cursor = startOfDay(cursor - DAY_MS / 2);
+  }
+  return streak;
+};
+
+export const STREAK_MILESTONES = [7, 30, 100];
+
+export const getCompletionTimes = (plan: {
+  completedDays: Record<string, { isCompleted: boolean; completedAt?: number }>;
+}): number[] =>
+  Object.values(plan.completedDays).flatMap((d) =>
+    d.isCompleted && d.completedAt ? [d.completedAt] : [],
+  );

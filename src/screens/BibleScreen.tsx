@@ -28,7 +28,11 @@ import { BibleText } from "../components/BibleText";
 import { BibleToast } from "../components/BibleToast";
 import { BibleLocationBar } from "../components/BibleLocationBar";
 import { DrawingCaptureLayer } from "../components/DrawingCaptureLayer";
-import { PLAN_READING_NAVIGATED_EVENT } from "../hooks/usePlanReading";
+import {
+  PLAN_READING_NAVIGATED_EVENT,
+  usePlanReading,
+} from "../hooks/usePlanReading";
+import { savePlanPosition } from "../utils/planReadingPositions";
 import { PlanReadingFinishCard } from "../components/PlanReadingFinishCard";
 import { DrawingToolbar } from "../components/DrawingToolbar";
 import { useDrawings } from "../hooks/useDrawings";
@@ -54,6 +58,7 @@ import { useToast } from "../hooks/useToast";
 
 const AUDIO_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 100 };
 const SCROLL_TOP_BUTTON_OFFSET = 600;
+const PLAN_AUTO_COMPLETE_DELAY = 4000;
 
 export default function BibleScreen() {
   const {
@@ -88,9 +93,30 @@ export default function BibleScreen() {
   const { ms, DESIGN } = useResponsive();
   const { toast, opacity, show } = useToast();
   const planFooter = useMemo(
-    () => <PlanReadingFinishCard onMessage={show} />,
+    () => (
+      <PlanReadingFinishCard
+        onMessage={(message, undo) =>
+          show(
+            message,
+            "success",
+            undo ? { label: "Desfazer", onPress: undo } : undefined,
+          )
+        }
+      />
+    ),
     [show],
   );
+  const {
+    isActive: isPlanActive,
+    isChapterDone: isPlanChapterDone,
+    markDone: markPlanChapterDone,
+  } = usePlanReading();
+  const planPositionRef = useRef<{
+    isActive: boolean;
+    abbrev: string;
+    chapter: number;
+  }>({ isActive: false, abbrev: "", chapter: 0 });
+  const [footerSeenKey, setFooterSeenKey] = useState<string | null>(null);
   const { colors } = useTheme();
   const { readerTheme, readerColors } = useReaderSettings();
   const primaryColor =
@@ -159,6 +185,8 @@ export default function BibleScreen() {
   const navVisibleRef = useRef(true);
   const [isNavInteractive, setIsNavInteractive] = useState(true);
   const [isReaderScrolledDown, setIsReaderScrolledDown] = useState(false);
+  const [readProgress, setReadProgress] = useState(0);
+  const scrollOffsetRef = useRef(0);
 
   const setNavVisible = useCallback(
     (visible: boolean) => {
@@ -201,8 +229,16 @@ export default function BibleScreen() {
   const updateNavVisibility = useCallback(
     (nativeEvent: any) => {
       const offsetY = nativeEvent.contentOffset.y;
+      scrollOffsetRef.current = offsetY;
       const atEnd = isAtScrollEnd(nativeEvent);
       setIsReaderScrolledDown(offsetY > ms(SCROLL_TOP_BUTTON_OFFSET));
+      const maxOffset =
+        nativeEvent.contentSize.height - nativeEvent.layoutMeasurement.height;
+      setReadProgress(
+        maxOffset > 0
+          ? Math.min(100, Math.max(0, Math.round((offsetY / maxOffset) * 100)))
+          : 0,
+      );
 
       if (!hasTrackedScroll.current) {
         hasTrackedScroll.current = true;
@@ -223,6 +259,12 @@ export default function BibleScreen() {
     },
     [setNavVisible, isAtScrollEnd, ms],
   );
+
+  const handleDrawScrollBy = useCallback((dy: number) => {
+    const next = Math.max(0, scrollOffsetRef.current - dy);
+    scrollOffsetRef.current = next;
+    sectionListRef.current?.scrollToOffset({ offset: next, animated: false });
+  }, []);
 
   const handleReaderScroll = useCallback(
     (event: any) => {
@@ -435,7 +477,21 @@ export default function BibleScreen() {
           v.isViewable &&
           (v.item?.type === "verse" || v.item?.type === "paragraph"),
       );
-      if (verseItem) topVisibleVerseRef.current = verseItem.item.verse;
+      if (verseItem) {
+        topVisibleVerseRef.current = verseItem.item.verse;
+        const plan = planPositionRef.current;
+        if (plan.isActive) {
+          savePlanPosition(plan.abbrev, plan.chapter, verseItem.item.verse);
+        }
+      }
+      const isFooterViewable = viewableItems.some(
+        (v) => v.isViewable && v.item?.type === "footer",
+      );
+      setFooterSeenKey(
+        isFooterViewable
+          ? `${planPositionRef.current.abbrev}-${planPositionRef.current.chapter}`
+          : null,
+      );
 
       const visible = new Set<number>();
       for (const v of viewableItems) {
@@ -604,15 +660,49 @@ export default function BibleScreen() {
       sectionListRef.current?.scrollToOffset({ offset: 0, animated: false });
     const sub = DeviceEventEmitter.addListener(
       PLAN_READING_NAVIGATED_EVENT,
-      () => {
+      (target?: { chapter: number; verse: number }) => {
         setIsActionSheetVisible(false);
         setSelectedVerses([]);
+        if (target && target.verse > 1) {
+          setTimeout(() => scrollToVerse(target.verse, target.chapter), 300);
+          return;
+        }
         scrollToTop();
         setTimeout(scrollToTop, 300);
       },
     );
     return () => sub.remove();
-  }, [sectionListRef]);
+  }, [sectionListRef, scrollToVerse]);
+
+  useEffect(() => {
+    planPositionRef.current = {
+      isActive: isPlanActive,
+      abbrev: currentBook.abbrev,
+      chapter,
+    };
+  }, [isPlanActive, currentBook.abbrev, chapter]);
+
+  const isFooterSeen = footerSeenKey === `${currentBook.abbrev}-${chapter}`;
+
+  useEffect(() => {
+    if (!isFooterSeen || !isPlanActive || isPlanChapterDone) return;
+    const timer = setTimeout(() => {
+      const undo = markPlanChapterDone();
+      if (undo) {
+        show("Capítulo marcado como lido", "success", {
+          label: "Desfazer",
+          onPress: undo,
+        });
+      }
+    }, PLAN_AUTO_COMPLETE_DELAY);
+    return () => clearTimeout(timer);
+  }, [
+    isFooterSeen,
+    isPlanActive,
+    isPlanChapterDone,
+    markPlanChapterDone,
+    show,
+  ]);
 
   const selectVerseForActions = (item: any) => {
     const verseText =
@@ -1316,7 +1406,23 @@ export default function BibleScreen() {
             </View>
           )}
 
-          {isDrawMode && <DrawingCaptureLayer />}
+          {readProgress > 0 && !isSplitScreen && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                height: ms(DESIGN.spacing.tiny),
+                width: `${readProgress}%`,
+                backgroundColor: primaryColor,
+              }}
+            />
+          )}
+
+          {isDrawMode && (
+            <DrawingCaptureLayer onScrollBy={handleDrawScrollBy} />
+          )}
 
           {!isActionSheetVisible && !isAudioModalVisible && !isDrawMode && (
             <Animated.View

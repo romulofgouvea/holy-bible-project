@@ -80,6 +80,7 @@ export default function ConfigurationScreen() {
     isSupported: isReadingPlanNotificationsSupported,
     enabled: isReadingPlanNotificationsEnabled,
     time: readingPlanNotificationTime,
+    suggestedTime: suggestedReminderTime,
     setEnabled: setReadingPlanNotificationsEnabled,
     setTime: setReadingPlanNotificationTime,
   } = useReadingPlanNotifications();
@@ -636,6 +637,34 @@ export default function ConfigurationScreen() {
                 </TouchableOpacity>
               )}
             </View>
+          )}
+          {isReadingPlanNotificationsEnabled && suggestedReminderTime && (
+            <TouchableOpacity
+              onPress={() =>
+                setReadingPlanNotificationTime(suggestedReminderTime)
+              }
+              style={[
+                styles.subItem,
+                { backgroundColor: colors.primary + "12" },
+              ]}
+              activeOpacity={0.7}
+            >
+              <BibleIcon
+                name="clock"
+                color={colors.primary}
+                size={ms(DESIGN.icon.xs)}
+              />
+              <BibleText
+                style={{
+                  flex: 1,
+                  fontSize: ms(DESIGN.fontSize.md),
+                  color: colors.primary,
+                  fontWeight: "700",
+                }}
+              >
+                Você costuma ler às {suggestedReminderTime}. Usar este horário?
+              </BibleText>
+            </TouchableOpacity>
           )}
         </View>
 
