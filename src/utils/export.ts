@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { inlineStudyImages } from "./studyImages";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { escapeHtml, sanitizeHtml } from "./sanitize";
@@ -33,7 +34,7 @@ const EXPORT_CSS = `
     word-break: break-word;
     box-shadow: inset 0 0 0 1px rgba(0,128,128,0.05);
   }
-  .remove-verse-btn { display: none !important; }
+  .remove-verse-btn, .move-verse-btn { display: none !important; }
   .bible-verse .verse-title { 
     color: #008080; 
     display: block; 
@@ -69,9 +70,10 @@ export async function exportToPDF(
   showTitle: boolean = true,
 ) {
   try {
+    const inlinedContent = await inlineStudyImages(htmlContent);
     const htmlDocument = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${EXPORT_CSS}</style></head><body>
       ${showTitle ? `<h1 class="main-title">${escapeHtml(title)}</h1>` : ""}
-      ${sanitizeHtml(htmlContent).replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, "")}
+      ${sanitizeHtml(inlinedContent).replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, "")}
     </body></html>`;
 
     if (Platform.OS === "web") {

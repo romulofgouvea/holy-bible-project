@@ -21,7 +21,10 @@ import { BACKUP_RESTORED_EVENT, writeAutoBackupFile } from "../utils/backup";
 import { getVerseDrawingKey, isDrawingEntry } from "../utils/drawing";
 import { useTheme } from "./useTheme";
 
-export const DRAWING_WIDTHS = [3, 6, 10];
+export const MIN_STROKE_WIDTH = 2;
+export const MAX_STROKE_WIDTH = 14;
+export const DEFAULT_STROKE_WIDTH = 6;
+export const MARKER_OPACITY = 0.4;
 export const MARKER_WIDTH_FACTOR = 3;
 export const MAX_RECENT_COLORS = 5;
 const PERSIST_DELAY = 400;
@@ -36,7 +39,7 @@ type DrawingContextType = {
   tool: DrawingTool;
   color: string;
   recentColors: string[];
-  widthIndex: number;
+  baseWidth: number;
   strokeWidth: number;
   showDrawings: boolean;
   canUndo: boolean;
@@ -46,7 +49,7 @@ type DrawingContextType = {
   setTool: (tool: DrawingTool) => void;
   setIsErasing: (value: boolean) => void;
   setColor: (color: string) => void;
-  cycleWidth: () => void;
+  setBaseWidth: (value: number) => void;
   setShowDrawings: (value: boolean) => void;
   addStroke: (ref: VerseReference, stroke: DrawingStroke) => void;
   addStrokes: (items: StrokeItem[]) => void;
@@ -104,7 +107,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
   const [storedColor, setStoredColor] = useState<string | null>(null);
   const color = storedColor ?? colors.primary;
   const [recentColors, setRecentColors] = useState<string[]>([]);
-  const [widthIndex, setWidthIndex] = useState(1);
+  const [baseWidth, setBaseWidthState] = useState(DEFAULT_STROKE_WIDTH);
   const [showDrawings, setShowDrawingsState] = useState(true);
   const [undoCount, setUndoCount] = useState(0);
   const [redoCount, setRedoCount] = useState(0);
@@ -131,12 +134,23 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
 
   const load = useCallback(async () => {
     try {
-      const [stored, show, savedColor, savedRecent] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.DRAWINGS),
-        AsyncStorage.getItem(STORAGE_KEYS.SHOW_DRAWINGS),
-        AsyncStorage.getItem(STORAGE_KEYS.DRAWING_COLOR),
-        AsyncStorage.getItem(STORAGE_KEYS.DRAWING_RECENT_COLORS),
-      ]);
+      const [stored, show, savedColor, savedRecent, savedWidth] =
+        await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.DRAWINGS),
+          AsyncStorage.getItem(STORAGE_KEYS.SHOW_DRAWINGS),
+          AsyncStorage.getItem(STORAGE_KEYS.DRAWING_COLOR),
+          AsyncStorage.getItem(STORAGE_KEYS.DRAWING_RECENT_COLORS),
+          AsyncStorage.getItem(STORAGE_KEYS.DRAWING_WIDTH),
+        ]);
+      const parsedWidth = Number(savedWidth);
+      if (savedWidth !== null && Number.isFinite(parsedWidth)) {
+        setBaseWidthState(
+          Math.min(
+            MAX_STROKE_WIDTH,
+            Math.max(MIN_STROKE_WIDTH, Math.round(parsedWidth)),
+          ),
+        );
+      }
       setStoredColor(savedColor);
       const recent = savedRecent ? JSON.parse(savedRecent) : [];
       setRecentColors(
@@ -336,10 +350,16 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
     setIsErasing(false);
   }, []);
 
-  const cycleWidth = useCallback(
-    () => setWidthIndex((prev) => (prev + 1) % DRAWING_WIDTHS.length),
-    [],
-  );
+  const setBaseWidth = useCallback((value: number) => {
+    const next = Math.min(
+      MAX_STROKE_WIDTH,
+      Math.max(MIN_STROKE_WIDTH, Math.round(value)),
+    );
+    setBaseWidthState(next);
+    AsyncStorage.setItem(STORAGE_KEYS.DRAWING_WIDTH, String(next)).catch(
+      () => {},
+    );
+  }, []);
 
   const setShowDrawings = useCallback((value: boolean) => {
     setShowDrawingsState(value);
@@ -357,8 +377,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
 
   const stopDrawMode = useCallback(() => setIsDrawMode(false), []);
 
-  const strokeWidth =
-    DRAWING_WIDTHS[widthIndex] * (tool === "marker" ? MARKER_WIDTH_FACTOR : 1);
+  const strokeWidth = baseWidth * (tool === "marker" ? MARKER_WIDTH_FACTOR : 1);
 
   const value = useMemo(
     () => ({
@@ -368,7 +387,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       tool,
       color,
       recentColors,
-      widthIndex,
+      baseWidth,
       strokeWidth,
       showDrawings,
       canUndo: undoCount > 0,
@@ -378,7 +397,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       setTool,
       setIsErasing,
       setColor,
-      cycleWidth,
+      setBaseWidth,
       setShowDrawings,
       addStroke,
       addStrokes,
@@ -395,7 +414,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       tool,
       color,
       recentColors,
-      widthIndex,
+      baseWidth,
       strokeWidth,
       showDrawings,
       undoCount,
@@ -404,7 +423,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       stopDrawMode,
       setTool,
       setColor,
-      cycleWidth,
+      setBaseWidth,
       setShowDrawings,
       addStroke,
       addStrokes,

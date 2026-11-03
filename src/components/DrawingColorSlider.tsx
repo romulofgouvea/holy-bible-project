@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import {
   GestureResponderEvent,
   LayoutChangeEvent,
@@ -14,7 +14,7 @@ import {
   colorAtRatio,
   SLIDER_GRADIENT_STOPS,
 } from "../utils/drawing";
-import { impactLight, selectionHaptic } from "../utils/haptics";
+import { impactLight } from "../utils/haptics";
 
 type Props = {
   bottom: number;
@@ -26,10 +26,11 @@ export const DrawingColorSlider = React.memo(
   ({ bottom, left, onDone }: Props) => {
     const { ms, DESIGN } = useResponsive();
     const { colors } = useTheme();
-    const { color, setColor, setIsErasing } = useDrawings();
-    const [trackHeight, setTrackHeight] = useState(0);
-    const [ratio, setRatio] = useState<number | null>(null);
-    const lastColorRef = useRef<string | null>(null);
+    const { setColor, setIsErasing } = useDrawings();
+    const thumbRef = useRef<React.ElementRef<typeof View>>(null);
+    const trackHeightRef = useRef(0);
+    const positionRef = useRef<number | null>(null);
+    const trackTopRef = useRef(0);
 
     const trackWidth = ms(DESIGN.spacing.md);
     const thumbSize = ms(DESIGN.icon.md);
@@ -82,35 +83,48 @@ export const DrawingColorSlider = React.memo(
     );
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
-      setTrackHeight(e.nativeEvent.layout.height);
+      trackHeightRef.current = e.nativeEvent.layout.height;
     }, []);
 
-    const pick = useCallback(
+    const move = useCallback(
       (e: GestureResponderEvent) => {
-        if (trackHeight <= 0) return;
-        const next = clampRatio(e.nativeEvent.locationY / trackHeight);
-        const picked = colorAtRatio(next);
-        setRatio(next);
-        if (picked !== lastColorRef.current) {
-          lastColorRef.current = picked;
-          selectionHaptic();
-          setColor(picked);
-          setIsErasing(false);
-        }
+        const height = trackHeightRef.current;
+        if (height <= 0) return;
+        const next = clampRatio(
+          (e.nativeEvent.pageY - trackTopRef.current) / height,
+        );
+        positionRef.current = next;
+        const translateY = Math.min(
+          Math.max(next * height - thumbSize / 2, 0),
+          Math.max(height - thumbSize, 0),
+        );
+        thumbRef.current?.setNativeProps({
+          style: {
+            opacity: 1,
+            backgroundColor: colorAtRatio(next),
+            transform: [{ translateY }],
+          },
+        });
       },
-      [trackHeight, setColor, setIsErasing],
+      [thumbSize],
     );
 
     const handleGrant = useCallback(
       (e: GestureResponderEvent) => {
         impactLight();
-        pick(e);
+        trackTopRef.current = e.nativeEvent.pageY - e.nativeEvent.locationY;
+        move(e);
       },
-      [pick],
+      [move],
     );
 
-    const thumbTop =
-      ratio === null ? 0 : ratio * Math.max(trackHeight - thumbSize, 0);
+    const handleRelease = useCallback(() => {
+      if (positionRef.current !== null) {
+        setColor(colorAtRatio(positionRef.current));
+        setIsErasing(false);
+      }
+      onDone();
+    }, [setColor, setIsErasing, onDone]);
 
     return (
       <View
@@ -124,8 +138,9 @@ export const DrawingColorSlider = React.memo(
           onMoveShouldSetResponder={() => true}
           onResponderTerminationRequest={() => false}
           onResponderGrant={handleGrant}
-          onResponderMove={pick}
-          onResponderRelease={onDone}
+          onResponderMove={move}
+          onResponderRelease={handleRelease}
+          onResponderTerminate={handleRelease}
         >
           <View style={styles.track} pointerEvents="none">
             <Svg width="100%" height="100%" preserveAspectRatio="none">
@@ -145,12 +160,11 @@ export const DrawingColorSlider = React.memo(
               />
             </Svg>
           </View>
-          {ratio !== null && (
-            <View
-              pointerEvents="none"
-              style={[styles.thumb, { top: thumbTop, backgroundColor: color }]}
-            />
-          )}
+          <View
+            ref={thumbRef}
+            pointerEvents="none"
+            style={[styles.thumb, { opacity: 0 }]}
+          />
         </View>
       </View>
     );

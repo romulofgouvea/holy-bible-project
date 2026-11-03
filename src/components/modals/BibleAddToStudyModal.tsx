@@ -27,6 +27,7 @@ type BibleAddToStudyModalProps = {
   onClose: () => void;
   selectedVerses: SelectedVerse[];
   customHtml?: string;
+  suggestedTitle?: string;
   onShowToast?: (
     msg: string,
     type?: "success" | "info" | "warning",
@@ -42,6 +43,7 @@ export function BibleAddToStudyModal({
   onClose,
   selectedVerses,
   customHtml,
+  suggestedTitle,
   onShowToast,
 }: BibleAddToStudyModalProps) {
   const router = useRouter();
@@ -123,13 +125,19 @@ export function BibleAddToStudyModal({
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
+  const defaultTitle =
+    suggestedTitle ??
+    (selectedVerses.length > 0
+      ? `${selectedVerses[0].bookName} ${selectedVerses[0].chapter}:${formatVerseRanges(selectedVerses).ranges}`
+      : "");
+
   React.useEffect(() => {
     if (visible) {
       setIsCreating(false);
-      setNewTitle("");
+      setNewTitle(defaultTitle);
       reloadFromStorage();
     }
-  }, [visible]);
+  }, [visible, defaultTitle]);
 
   const buildVersesHtml = () => {
     if (customHtml) return customHtml;

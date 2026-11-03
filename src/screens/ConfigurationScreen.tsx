@@ -171,7 +171,7 @@ export default function ConfigurationScreen() {
     [ms, colors, DESIGN],
   );
 
-  const { setReaderTheme } = useReaderSettings();
+  const { setReaderTheme, isFocusMode, setIsFocusMode } = useReaderSettings();
   const { clearHistory } = useHistory();
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const { importBulk, reloadFromStorage } = useStudies();
@@ -690,6 +690,18 @@ export default function ConfigurationScreen() {
             },
           ]}
         >
+          <SettingsItem
+            label="Modo leitura sem distração"
+            description="Esconde a barra de localização e os botões flutuantes"
+            icon="eye-off"
+            onPress={() => setIsFocusMode(!isFocusMode)}
+            rightElement={
+              <BibleSwitch value={isFocusMode} onValueChange={setIsFocusMode} />
+            }
+          />
+          <BibleDivider
+            style={{ marginLeft: ms(DESIGN.layout.settingsIconOffset) }}
+          />
           <SettingsItem
             label="Downloads de Áudio"
             description="Baixe capítulos para ouvir offline"

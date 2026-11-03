@@ -129,7 +129,7 @@ export default function BibleScreen() {
   }>({ isActive: false, abbrev: "", chapter: 0 });
   const [footerSeenKey, setFooterSeenKey] = useState<string | null>(null);
   const { colors } = useTheme();
-  const { readerTheme, readerColors } = useReaderSettings();
+  const { readerTheme, readerColors, isFocusMode } = useReaderSettings();
   const primaryColor =
     readerTheme === "sepia" ? readerColors.primary : colors.primary;
 
@@ -978,48 +978,50 @@ export default function BibleScreen() {
         }}
       />
 
-      <BibleLocationBar
-        version={version}
-        isVersionVisible={!isSplitScreen}
-        bookName={currentBook.name}
-        chapter={chapter}
-        onOpenVersion={() => {
-          setIsActionSheetVisible(false);
-          setSelectedVerses([]);
-          openModal({ initialStep: "version" });
-        }}
-        onOpenBook={() => {
-          setIsActionSheetVisible(false);
-          setSelectedVerses([]);
-          openModal({
-            initialStep: "book",
-            onSelect: (s) => {
-              jumpTo({
-                version: s.version || version,
-                book: s.book?.abbrev || book,
-                chapter: s.chapter || chapter,
-                verse: s.verse || verse,
-              });
-            },
-          });
-        }}
-        onOpenChapter={() => {
-          setIsActionSheetVisible(false);
-          setSelectedVerses([]);
-          openModal({
-            initialStep: "chapter",
-            onSelect: (s) => {
-              jumpTo({
-                version: s.version || version,
-                book,
-                chapter: s.chapter || chapter,
-                verse: s.verse || 1,
-              });
-            },
-          });
-        }}
-        onOpenAudio={() => setIsAudioModalVisible(true)}
-      />
+      {!isFocusMode && (
+        <BibleLocationBar
+          version={version}
+          isVersionVisible={!isSplitScreen}
+          bookName={currentBook.name}
+          chapter={chapter}
+          onOpenVersion={() => {
+            setIsActionSheetVisible(false);
+            setSelectedVerses([]);
+            openModal({ initialStep: "version" });
+          }}
+          onOpenBook={() => {
+            setIsActionSheetVisible(false);
+            setSelectedVerses([]);
+            openModal({
+              initialStep: "book",
+              onSelect: (s) => {
+                jumpTo({
+                  version: s.version || version,
+                  book: s.book?.abbrev || book,
+                  chapter: s.chapter || chapter,
+                  verse: s.verse || verse,
+                });
+              },
+            });
+          }}
+          onOpenChapter={() => {
+            setIsActionSheetVisible(false);
+            setSelectedVerses([]);
+            openModal({
+              initialStep: "chapter",
+              onSelect: (s) => {
+                jumpTo({
+                  version: s.version || version,
+                  book,
+                  chapter: s.chapter || chapter,
+                  verse: s.verse || 1,
+                });
+              },
+            });
+          }}
+          onOpenAudio={() => setIsAudioModalVisible(true)}
+        />
+      )}
 
       <BibleHistoryModal
         visible={isHistoryModalVisible}
@@ -1498,7 +1500,7 @@ export default function BibleScreen() {
             <View style={styles.splitPane}>
               <BibleVerseReader
                 footerExtra={planFooter}
-                headerExtra={planHeader}
+                headerExtra={isFocusMode ? undefined : planHeader}
                 listRef={sectionListRef}
                 sections={sectionData}
                 blinkingVerse={blinkingVerse}
@@ -1543,114 +1545,126 @@ export default function BibleScreen() {
             <DrawingCaptureLayer onScrollBy={handleDrawScrollBy} />
           )}
 
-          {!isActionSheetVisible && !isAudioModalVisible && !isDrawMode && (
-            <Animated.View
-              pointerEvents={isNavInteractive ? "box-none" : "none"}
-              style={[
-                styles.floatingNav,
-                {
-                  opacity: navVisibleAnim,
-                  transform: [
-                    {
-                      translateY: navVisibleAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [ms(24), 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {hasPrevChapter ? (
-                <BibleIcon
-                  name="chevron-left"
-                  size={navIconSize}
-                  containerSize={navBtnSize}
-                  color={navIcon}
-                  backgroundColor={navBg}
-                  borderRadius={ms(DESIGN.borderRadius.md)}
-                  onPress={() => handleNavigateChapter(-1)}
-                  activeOpacity={0.8}
-                  style={{
-                    elevation: 4,
-                    shadowColor: colors.shadow,
-                    shadowOffset: { width: 0, height: ms(DESIGN.spacing.tiny) },
-                    shadowOpacity: 0.25,
-                    shadowRadius: ms(DESIGN.spacing.xs),
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: navBtnSize,
-                    height: navBtnSize,
-                  }}
-                  pointerEvents="none"
-                />
-              )}
+          {!isActionSheetVisible &&
+            !isAudioModalVisible &&
+            !isDrawMode &&
+            !isFocusMode && (
+              <Animated.View
+                pointerEvents={isNavInteractive ? "box-none" : "none"}
+                style={[
+                  styles.floatingNav,
+                  {
+                    opacity: navVisibleAnim,
+                    transform: [
+                      {
+                        translateY: navVisibleAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [ms(24), 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                {hasPrevChapter ? (
+                  <BibleIcon
+                    name="chevron-left"
+                    size={navIconSize}
+                    containerSize={navBtnSize}
+                    color={navIcon}
+                    backgroundColor={navBg}
+                    borderRadius={ms(DESIGN.borderRadius.md)}
+                    onPress={() => handleNavigateChapter(-1)}
+                    activeOpacity={0.8}
+                    style={{
+                      elevation: 4,
+                      shadowColor: colors.shadow,
+                      shadowOffset: {
+                        width: 0,
+                        height: ms(DESIGN.spacing.tiny),
+                      },
+                      shadowOpacity: 0.25,
+                      shadowRadius: ms(DESIGN.spacing.xs),
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: navBtnSize,
+                      height: navBtnSize,
+                    }}
+                    pointerEvents="none"
+                  />
+                )}
 
-              {isReaderScrolledDown ? (
-                <BibleIcon
-                  name="arrow-up"
-                  size={navIconSize}
-                  containerSize={navBtnSize}
-                  color={navIcon}
-                  backgroundColor={navBg}
-                  borderRadius={ms(DESIGN.borderRadius.md)}
-                  onPress={() =>
-                    sectionListRef.current?.scrollToOffset({
-                      offset: 0,
-                      animated: true,
-                    })
-                  }
-                  activeOpacity={0.8}
-                  style={{
-                    elevation: 4,
-                    shadowColor: colors.shadow,
-                    shadowOffset: { width: 0, height: ms(DESIGN.spacing.tiny) },
-                    shadowOpacity: 0.25,
-                    shadowRadius: ms(DESIGN.spacing.xs),
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: navBtnSize,
-                    height: navBtnSize,
-                  }}
-                  pointerEvents="none"
-                />
-              )}
+                {isReaderScrolledDown ? (
+                  <BibleIcon
+                    name="arrow-up"
+                    size={navIconSize}
+                    containerSize={navBtnSize}
+                    color={navIcon}
+                    backgroundColor={navBg}
+                    borderRadius={ms(DESIGN.borderRadius.md)}
+                    onPress={() =>
+                      sectionListRef.current?.scrollToOffset({
+                        offset: 0,
+                        animated: true,
+                      })
+                    }
+                    activeOpacity={0.8}
+                    style={{
+                      elevation: 4,
+                      shadowColor: colors.shadow,
+                      shadowOffset: {
+                        width: 0,
+                        height: ms(DESIGN.spacing.tiny),
+                      },
+                      shadowOpacity: 0.25,
+                      shadowRadius: ms(DESIGN.spacing.xs),
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: navBtnSize,
+                      height: navBtnSize,
+                    }}
+                    pointerEvents="none"
+                  />
+                )}
 
-              {hasNextChapter ? (
-                <BibleIcon
-                  name="chevron-right"
-                  size={navIconSize}
-                  containerSize={navBtnSize}
-                  color={navIcon}
-                  backgroundColor={navBg}
-                  borderRadius={ms(DESIGN.borderRadius.md)}
-                  onPress={() => handleNavigateChapter(1)}
-                  activeOpacity={0.8}
-                  style={{
-                    elevation: 4,
-                    shadowColor: colors.shadow,
-                    shadowOffset: { width: 0, height: ms(DESIGN.spacing.tiny) },
-                    shadowOpacity: 0.25,
-                    shadowRadius: ms(DESIGN.spacing.xs),
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: navBtnSize,
-                    height: navBtnSize,
-                  }}
-                  pointerEvents="none"
-                />
-              )}
-            </Animated.View>
-          )}
+                {hasNextChapter ? (
+                  <BibleIcon
+                    name="chevron-right"
+                    size={navIconSize}
+                    containerSize={navBtnSize}
+                    color={navIcon}
+                    backgroundColor={navBg}
+                    borderRadius={ms(DESIGN.borderRadius.md)}
+                    onPress={() => handleNavigateChapter(1)}
+                    activeOpacity={0.8}
+                    style={{
+                      elevation: 4,
+                      shadowColor: colors.shadow,
+                      shadowOffset: {
+                        width: 0,
+                        height: ms(DESIGN.spacing.tiny),
+                      },
+                      shadowOpacity: 0.25,
+                      shadowRadius: ms(DESIGN.spacing.xs),
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: navBtnSize,
+                      height: navBtnSize,
+                    }}
+                    pointerEvents="none"
+                  />
+                )}
+              </Animated.View>
+            )}
         </View>
       </Animated.View>
 

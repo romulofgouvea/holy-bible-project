@@ -11,6 +11,7 @@ import { useReaderSettings } from "../hooks/useReaderSettings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { getVerseDrawingKey } from "../utils/drawing";
+import { saveStudyImage } from "../utils/studyImages";
 import { ViewHandle } from "../utils/drawingRegistry";
 import { escapeHtml } from "../utils/sanitize";
 import { StudyDrawingSelection } from "../utils/studyDrawingBridge";
@@ -79,14 +80,15 @@ export const StudyDrawingCapture = ({ selection, onDone }: Props) => {
       let html: string | null = null;
       if (hasDrawing && captureViewRef.current) {
         try {
-          const base64 = await captureRef(captureViewRef, {
+          const temporaryUri = await captureRef(captureViewRef, {
             format: "jpg",
             quality: CAPTURE_QUALITY,
-            result: "base64",
+            result: "tmpfile",
             width: CAPTURE_WIDTH,
             height: Math.round((CAPTURE_WIDTH * size.height) / size.width),
           });
-          html = `<blockquote class="bible-verse" contenteditable="false"><div class="remove-verse-btn" contenteditable="false">×</div><img src="data:image/jpeg;base64,${base64}" alt="${escapeHtml(reference)}" /></blockquote><p><br></p>`;
+          const imageUri = await saveStudyImage(temporaryUri);
+          html = `<blockquote class="bible-verse" contenteditable="false"><div class="remove-verse-btn" contenteditable="false">×</div><img src="${imageUri}" alt="${escapeHtml(reference)}" /></blockquote><p><br></p>`;
         } catch {
           html = null;
         }

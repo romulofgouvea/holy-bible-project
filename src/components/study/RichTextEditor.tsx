@@ -300,6 +300,24 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
           z-index: 100;
           opacity: 0.5;
         }
+        .move-verse-btn {
+          position: absolute;
+          top: 0;
+          width: ${ms(DESIGN.height.md)}px;
+          height: ${ms(DESIGN.height.md)}px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: ${editorColors.primary};
+          font-size: 20px;
+          font-weight: bold;
+          cursor: pointer;
+          user-select: none;
+          z-index: 100;
+          opacity: 0.5;
+        }
+        .move-up-btn { right: ${ms(DESIGN.height.md)}px; }
+        .move-down-btn { right: ${ms(DESIGN.height.md) * 2}px; }
         .bible-verse b, .bible-verse .verse-title {
           color: ${editorColors.primary};
           display: block;
@@ -332,7 +350,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
         .verse-line { margin-bottom: ${ms(DESIGN.fontSize.xs)}px; display: flex; gap: ${ms(DESIGN.spacing.sm)}px; align-items: flex-start; }
         .verse-num { font-weight: 800; color: ${editorColors.primary}; font-size: 12px; margin-top: ${ms(DESIGN.spacing.tiny)}px; min-width: ${ms(DESIGN.spacing.xl)}px; text-align: right; flex-shrink: 0; white-space: nowrap; }
         .verse-text { font-style: italic; color: ${editorColors.onSurface}; flex: 1; }
-        ${readonly ? ".remove-verse-btn { display: none !important; }" : ""}
+        ${readonly ? ".remove-verse-btn, .move-verse-btn { display: none !important; }" : ""}
       </style>
     </head>
     <body onclick="document.getElementById('editor').focus();">
@@ -473,13 +491,66 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
               el.setAttribute('contenteditable', 'false');
             }
           });
+          ensureMoveButtons();
         });
         guardObserver.observe(editor, { childList: true, subtree: true });
+
+        function ensureMoveButtons() {
+          document.querySelectorAll('.bible-verse').forEach(el => {
+            if (el.querySelector('.move-up-btn')) return;
+            const up = document.createElement('div');
+            up.className = 'move-verse-btn move-up-btn';
+            up.setAttribute('contenteditable', 'false');
+            up.textContent = '\u2191';
+            const down = document.createElement('div');
+            down.className = 'move-verse-btn move-down-btn';
+            down.setAttribute('contenteditable', 'false');
+            down.textContent = '\u2193';
+            el.appendChild(up);
+            el.appendChild(down);
+          });
+        }
 
         function forceReadOnly() {
           document.querySelectorAll('.bible-verse').forEach(el => {
             el.setAttribute('contenteditable', 'false');
           });
+          ensureMoveButtons();
+        }
+
+        function verseUnit(block) {
+          const nodes = [block];
+          let n = block.nextElementSibling;
+          while (n && !n.classList.contains('bible-verse')) {
+            nodes.push(n);
+            n = n.nextElementSibling;
+          }
+          return nodes;
+        }
+
+        function moveVerseUnit(block, direction) {
+          const parent = block.parentNode;
+          const nodes = verseUnit(block);
+          if (direction < 0) {
+            let previous = block.previousElementSibling;
+            while (previous && !previous.classList.contains('bible-verse')) {
+              previous = previous.previousElementSibling;
+            }
+            if (!previous) return;
+            nodes.forEach(n => parent.insertBefore(n, previous));
+          } else {
+            const next = nodes[nodes.length - 1].nextElementSibling;
+            if (!next) return;
+            const nextUnit = verseUnit(next);
+            const reference = nextUnit[nextUnit.length - 1].nextSibling;
+            nodes.forEach(n => parent.insertBefore(n, reference));
+          }
+          ensureTrailingParagraph();
+          if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+          block.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          const msg = JSON.stringify({ type: 'contentChanged', data: editor.innerHTML });
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+          else window.parent.postMessage(msg, '*');
         }
         setTimeout(forceReadOnly, 100);
         setTimeout(forceReadOnly, 500);
@@ -637,6 +708,14 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
               sel.removeAllRanges();
               sel.addRange(range);
             }
+          }
+
+          if (e.target.classList.contains('move-verse-btn')) {
+            const movingBlock = e.target.closest('.bible-verse');
+            if (movingBlock) {
+              moveVerseUnit(movingBlock, e.target.classList.contains('move-up-btn') ? -1 : 1);
+            }
+            return;
           }
 
           if (e.target.classList.contains('remove-verse-btn')) {
@@ -1356,8 +1435,11 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
         ) : (
           <WebView
             ref={webViewRef}
-            source={{ html: editorHtml }}
-            originWhitelist={["about:blank"]}
+            source={{ html: editorHtml, baseUrl: "file:///" }}
+            originWhitelist={["*"]}
+            allowFileAccess
+            allowFileAccessFromFileURLs
+            allowUniversalAccessFromFileURLs
             onMessage={onMessage}
             onLoadEnd={() => {
               if (shouldScrollToEnd) {

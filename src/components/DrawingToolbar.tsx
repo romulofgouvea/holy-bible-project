@@ -1,18 +1,18 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   LayoutChangeEvent,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import { DRAWING_WIDTHS, useDrawings } from "../hooks/useDrawings";
+import { useDrawings } from "../hooks/useDrawings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { impactLight } from "../utils/haptics";
 import { BibleIcon } from "./BibleIcon";
-import { BibleText } from "./BibleText";
 import { DrawingColorSlider } from "./DrawingColorSlider";
+import { DrawingWidthSlider } from "./DrawingWidthSlider";
 import { BibleConfirmModal } from "./modals/BibleConfirmModal";
 
 type Props = {
@@ -23,9 +23,6 @@ type Props = {
   onDone: () => void;
 };
 
-const PREVIEW_DURATION = 1200;
-const MARKER_PREVIEW_OPACITY = 0.4;
-
 export const DrawingToolbar = React.memo(
   ({ version, bookAbbrev, chapter, verses, onDone }: Props) => {
     const { ms, DESIGN } = useResponsive();
@@ -34,21 +31,18 @@ export const DrawingToolbar = React.memo(
     const [isClearVisible, setIsClearVisible] = useState(false);
     const [barHeight, setBarHeight] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-    const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [isWidthOpen, setIsWidthOpen] = useState(false);
     const {
       tool,
       isErasing,
       color,
       recentColors,
       setColor,
-      strokeWidth,
-      widthIndex,
+      baseWidth,
       canUndo,
       canRedo,
       setTool,
       setIsErasing,
-      cycleWidth,
       undo,
       redo,
       clearVerses,
@@ -97,63 +91,31 @@ export const DrawingToolbar = React.memo(
             flexDirection: "row",
             alignItems: "center",
             gap: ms(DESIGN.spacing.md),
-            paddingHorizontal: ms(DESIGN.spacing.lg),
           },
           recentDot: {
             width: ms(DESIGN.spacing.xl),
             height: ms(DESIGN.spacing.xl),
             borderRadius: ms(DESIGN.borderRadius.full),
           },
-          preview: {
-            position: "absolute",
-            left: ms(DESIGN.spacing.lg),
-            paddingHorizontal: ms(DESIGN.spacing.lg),
-            paddingVertical: ms(DESIGN.spacing.md),
-            borderRadius: ms(DESIGN.borderRadius.md),
-            borderWidth: 1,
-            elevation: 24,
-          },
-          previewLine: {
-            width: ms(DESIGN.maxWidth.sm / 4),
-            borderRadius: ms(DESIGN.borderRadius.full),
+          divider: {
+            width: 1,
+            height: ms(DESIGN.icon.xl * 0.6),
           },
           widthDot: {
             borderRadius: ms(DESIGN.borderRadius.full),
-          },
-          doneBtn: {
-            paddingHorizontal: ms(DESIGN.spacing.lg),
-            height: ms(DESIGN.icon.xl),
-            borderRadius: ms(DESIGN.borderRadius.md),
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          doneText: {
-            fontWeight: "700",
-            fontSize: ms(DESIGN.fontSize.md),
           },
         }),
       [ms, DESIGN],
     );
 
-    useEffect(
-      () => () => {
-        if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-      },
-      [],
-    );
-
-    const handleCycleWidth = () => {
-      cycleWidth();
-      setIsPreviewVisible(true);
-      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-      previewTimerRef.current = setTimeout(
-        () => setIsPreviewVisible(false),
-        PREVIEW_DURATION,
-      );
+    const handleToggleWidth = () => {
+      setIsSliderOpen(false);
+      setIsWidthOpen((prev) => !prev);
     };
 
     const handleToggleCollapsed = () => {
       setIsSliderOpen(false);
+      setIsWidthOpen(false);
       setIsCollapsed((prev) => !prev);
     };
 
@@ -226,38 +188,26 @@ export const DrawingToolbar = React.memo(
       );
     };
 
-    const dotSize = ms(DRAWING_WIDTHS[widthIndex] + DESIGN.spacing.xs);
+    const dotSize = ms(baseWidth + DESIGN.spacing.xs);
 
     return (
       <>
-        {isPreviewVisible && !isCollapsed && (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.preview,
-              {
-                bottom: barHeight + ms(DESIGN.spacing.sm),
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.previewLine,
-                {
-                  height: strokeWidth,
-                  backgroundColor: color,
-                  opacity: tool === "marker" ? MARKER_PREVIEW_OPACITY : 1,
-                },
-              ]}
-            />
-          </View>
+        {isWidthOpen && (
+          <DrawingWidthSlider
+            bottom={barHeight + ms(DESIGN.spacing.sm)}
+            left={
+              ms(DESIGN.spacing.lg) +
+              (ms(DESIGN.icon.xl) + ms(DESIGN.spacing.sm)) * 2
+            }
+            onDone={() => setIsWidthOpen(false)}
+          />
         )}
-        {isSliderOpen && !isCollapsed && (
+        {isSliderOpen && (
           <DrawingColorSlider
             bottom={barHeight + ms(DESIGN.spacing.sm)}
-            left={ms(DESIGN.spacing.lg)}
+            left={
+              ms(DESIGN.spacing.lg) + ms(DESIGN.icon.xl) + ms(DESIGN.spacing.sm)
+            }
             onDone={() => setIsSliderOpen(false)}
           />
         )}
@@ -269,74 +219,26 @@ export const DrawingToolbar = React.memo(
           ]}
           testID="drawing-toolbar"
         >
-          {isCollapsed ? (
+          {!isCollapsed && (
             <>
               <View style={styles.toolRow}>
-                {secondaryBtn(
-                  handleToggleCollapsed,
-                  "drawing-expand",
-                  <BibleIcon
-                    name="chevron-up"
-                    size={ms(DESIGN.spacing.lg)}
-                    color={colors.primary}
-                  />,
+                {recentColors.length > 0 && (
+                  <View style={styles.recentRow}>
+                    {recentColors.map((c) => (
+                      <TouchableOpacity
+                        key={c}
+                        style={[styles.recentDot, { backgroundColor: c }]}
+                        onPress={() => {
+                          impactLight();
+                          setColor(c);
+                          setIsErasing(false);
+                        }}
+                        testID="drawing-recent-color"
+                      />
+                    ))}
+                  </View>
                 )}
-                <TouchableOpacity
-                  style={[styles.doneBtn, { backgroundColor: colors.primary }]}
-                  onPress={onDone}
-                  testID="drawing-done"
-                >
-                  <BibleText
-                    style={[styles.doneText, { color: colors.onPrimary }]}
-                  >
-                    Concluir
-                  </BibleText>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              {recentColors.length > 0 && (
-                <View style={styles.recentRow}>
-                  {recentColors.map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[styles.recentDot, { backgroundColor: c }]}
-                      onPress={() => {
-                        impactLight();
-                        setColor(c);
-                        setIsErasing(false);
-                      }}
-                      testID="drawing-recent-color"
-                    />
-                  ))}
-                </View>
-              )}
-              <View style={styles.toolRow}>
-                <View style={styles.toolGroup}>
-                  {secondaryBtn(
-                    () => setIsSliderOpen((prev) => !prev),
-                    "drawing-color",
-                    <View
-                      style={[styles.colorDot, { backgroundColor: color }]}
-                    />,
-                  )}
-                  {secondaryBtn(
-                    handleCycleWidth,
-                    "drawing-width",
-                    <View
-                      style={[
-                        styles.widthDot,
-                        {
-                          width: dotSize,
-                          height: dotSize,
-                          backgroundColor: colors.primary,
-                        },
-                      ]}
-                    />,
-                  )}
-                </View>
-                <View style={styles.toolGroup}>
+                <View style={[styles.toolGroup, { marginLeft: "auto" }]}>
                   {secondaryBtn(
                     undo,
                     "drawing-undo",
@@ -368,50 +270,76 @@ export const DrawingToolbar = React.memo(
                   )}
                 </View>
               </View>
-              <View style={styles.toolRow}>
-                <View style={styles.toolGroup}>
-                  {toolButton(
-                    "pen",
-                    !isErasing && tool === "pen",
-                    () => setTool("pen"),
-                    "drawing-pen",
-                  )}
-                  {toolButton(
-                    "marker",
-                    !isErasing && tool === "marker",
-                    () => setTool("marker"),
-                    "drawing-marker",
-                  )}
-                  {toolButton(
-                    "eraser",
-                    isErasing,
-                    () => setIsErasing(true),
-                    "drawing-eraser",
-                  )}
-                  {secondaryBtn(
-                    handleToggleCollapsed,
-                    "drawing-collapse",
-                    <BibleIcon
-                      name="chevron-down"
-                      size={ms(DESIGN.spacing.lg)}
-                      color={colors.primary}
-                    />,
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={[styles.doneBtn, { backgroundColor: colors.primary }]}
-                  onPress={onDone}
-                  testID="drawing-done"
-                >
-                  <BibleText
-                    style={[styles.doneText, { color: colors.onPrimary }]}
-                  >
-                    Concluir
-                  </BibleText>
-                </TouchableOpacity>
-              </View>
             </>
           )}
+          <View style={styles.toolRow}>
+            <View style={styles.toolGroup}>
+              {secondaryBtn(
+                handleToggleCollapsed,
+                isCollapsed ? "drawing-expand" : "drawing-collapse",
+                <BibleIcon
+                  name={isCollapsed ? "chevron-up" : "chevron-down"}
+                  size={ms(DESIGN.spacing.lg)}
+                  color={colors.primary}
+                />,
+              )}
+              {secondaryBtn(
+                () => {
+                  setIsWidthOpen(false);
+                  setIsSliderOpen((prev) => !prev);
+                },
+                "drawing-color",
+                <View style={[styles.colorDot, { backgroundColor: color }]} />,
+              )}
+              {secondaryBtn(
+                handleToggleWidth,
+                "drawing-width",
+                <View
+                  style={[
+                    styles.widthDot,
+                    {
+                      width: dotSize,
+                      height: dotSize,
+                      backgroundColor: colors.primary,
+                    },
+                  ]}
+                />,
+              )}
+              <View
+                style={[styles.divider, { backgroundColor: colors.border }]}
+              />
+              {toolButton(
+                "pen",
+                !isErasing && tool === "pen",
+                () => setTool("pen"),
+                "drawing-pen",
+              )}
+              {toolButton(
+                "marker",
+                !isErasing && tool === "marker",
+                () => setTool("marker"),
+                "drawing-marker",
+              )}
+              {toolButton(
+                "eraser",
+                isErasing,
+                () => setIsErasing(true),
+                "drawing-eraser",
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.iconBtn, { backgroundColor: colors.primary }]}
+              onPress={onDone}
+              accessibilityLabel="Concluir"
+              testID="drawing-done"
+            >
+              <BibleIcon
+                name="check"
+                size={ms(DESIGN.spacing.lg)}
+                color={colors.onPrimary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
         <BibleConfirmModal
           visible={isClearVisible}

@@ -7,12 +7,11 @@ import React, {
 } from "react";
 import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
-import { useDrawings } from "../hooks/useDrawings";
+import { MARKER_OPACITY, useDrawings } from "../hooks/useDrawings";
 import { DrawingStroke } from "../models";
 import { getVerseDrawingKey, pointsToPath } from "../utils/drawing";
 import { registerVerseLayer, ViewHandle } from "../utils/drawingRegistry";
 
-const MARKER_OPACITY = 0.4;
 const DRAWING_OVERFLOW = 64;
 
 export const StrokePath = React.memo(

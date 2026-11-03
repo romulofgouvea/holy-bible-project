@@ -16,6 +16,7 @@ import { useDrawings } from "../hooks/useDrawings";
 import { DrawingStroke } from "../models";
 import {
   findStrokeAt,
+  MIN_ERASE_RADIUS,
   makeStrokeId,
   simplifyPoints,
   splitPointsByRect,
@@ -40,6 +41,7 @@ export const DrawingCaptureLayer = React.memo(
     const {
       drawings,
       isErasing,
+      baseWidth,
       tool,
       color,
       strokeWidth,
@@ -113,6 +115,8 @@ export const DrawingCaptureLayer = React.memo(
 
     useEffect(() => cancelLive, [cancelLive]);
 
+    const eraseRadius = Math.max(baseWidth / 2, MIN_ERASE_RADIUS);
+
     const eraseWholeAt = useCallback(
       (x: number, y: number) => {
         for (const layer of layersRef.current) {
@@ -123,6 +127,7 @@ export const DrawingCaptureLayer = React.memo(
             x - layer.x,
             y - layer.y,
             layer.width,
+            eraseRadius,
           );
           if (!hit) continue;
           const targets = Object.entries(drawingsRef.current).flatMap(
@@ -137,7 +142,7 @@ export const DrawingCaptureLayer = React.memo(
           return;
         }
       },
-      [replaceStroke],
+      [replaceStroke, eraseRadius],
     );
 
     const handleStart = useCallback(

@@ -37,6 +37,8 @@ export type ReaderSettingsContextType = {
   setShouldShowVerseNumbers: (val: boolean) => void;
   isSpellcheckEnabled: boolean;
   setIsSpellcheckEnabled: (val: boolean) => void;
+  isFocusMode: boolean;
+  setIsFocusMode: (val: boolean) => void;
 };
 
 const ReaderSettingsContext = createContext<ReaderSettingsContextType>(
@@ -58,6 +60,7 @@ export const ReaderSettingsProvider = ({
   const [shouldShowVerseNumbers, setShouldShowVerseNumbersState] =
     useState(true);
   const [isSpellcheckEnabled, setIsSpellcheckEnabledState] = useState(true);
+  const [isFocusMode, setIsFocusModeState] = useState(false);
 
   const loadReaderSettings = useCallback(async () => {
     try {
@@ -69,6 +72,7 @@ export const ReaderSettingsProvider = ({
         savedShowTitles,
         savedShowVerseNumbers,
         savedSpellcheck,
+        savedFocusMode,
       ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.FONT_SIZE),
         AsyncStorage.getItem(STORAGE_KEYS.TEXT_ALIGN),
@@ -77,6 +81,7 @@ export const ReaderSettingsProvider = ({
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_TITLES),
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_VERSE_NUMBERS),
         AsyncStorage.getItem(STORAGE_KEYS.SPELLCHECK_ENABLED),
+        AsyncStorage.getItem(STORAGE_KEYS.FOCUS_MODE),
       ]);
 
       if (savedFontSize !== null)
@@ -90,6 +95,8 @@ export const ReaderSettingsProvider = ({
         setShouldShowVerseNumbersState(savedShowVerseNumbers === "true");
       if (savedSpellcheck !== null)
         setIsSpellcheckEnabledState(savedSpellcheck === "true");
+      if (savedFocusMode !== null)
+        setIsFocusModeState(savedFocusMode === "true");
     } catch (e) {}
     setIsLoaded(true);
   }, []);
@@ -145,6 +152,13 @@ export const ReaderSettingsProvider = ({
     } catch (e) {}
   }, []);
 
+  const setIsFocusMode = useCallback(async (val: boolean) => {
+    setIsFocusModeState(val);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.FOCUS_MODE, String(val));
+    } catch (e) {}
+  }, []);
+
   const setIsSpellcheckEnabled = useCallback(async (val: boolean) => {
     setIsSpellcheckEnabledState(val);
     try {
@@ -186,6 +200,8 @@ export const ReaderSettingsProvider = ({
       setShouldShowVerseNumbers,
       isSpellcheckEnabled,
       setIsSpellcheckEnabled,
+      isFocusMode,
+      setIsFocusMode,
     };
   }, [
     colorTheme,
@@ -197,6 +213,8 @@ export const ReaderSettingsProvider = ({
     shouldShowVerseNumbers,
     isSpellcheckEnabled,
     setIsSpellcheckEnabled,
+    isFocusMode,
+    setIsFocusMode,
     setFontSizeMultiplier,
     setTextAlign,
     setReaderTheme,

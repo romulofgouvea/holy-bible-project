@@ -9,25 +9,37 @@ export const setHapticsGlobal = (enabled: boolean) => {
 
 export const impactLight = () => {
   if (Platform.OS === "web" || !hapticsEnabled) return;
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  Promise.resolve()
+    .then(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light))
+    .catch(() => {});
 };
 
 export const impactMedium = () => {
   if (Platform.OS === "web" || !hapticsEnabled) return;
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  Promise.resolve()
+    .then(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium))
+    .catch(() => {});
 };
 
 export const impactHeavy = () => {
   if (Platform.OS === "web" || !hapticsEnabled) return;
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  Promise.resolve()
+    .then(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy))
+    .catch(() => {});
 };
 
 export const selectionHaptic = () => {
   if (Platform.OS === "web" || !hapticsEnabled) return;
-  Haptics.selectionAsync();
+  Promise.resolve()
+    .then(() => Haptics.selectionAsync())
+    .catch(() => {});
 };
 
 export const notificationSuccess = () => {
   if (Platform.OS === "web" || !hapticsEnabled) return;
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  Promise.resolve()
+    .then(() =>
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+    )
+    .catch(() => {});
 };

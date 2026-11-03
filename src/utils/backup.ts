@@ -25,7 +25,26 @@ export async function collectAppStorage(): Promise<
   Record<string, string | null>
 > {
   const pairs = await AsyncStorage.multiGet(BACKUP_STORAGE_KEYS);
-  return Object.fromEntries(pairs.map(([key, value]) => [key, value]));
+  const storage = Object.fromEntries(pairs.map(([key, value]) => [key, value]));
+  const studies = storage[STORAGE_KEYS.STUDIES];
+  if (studies) {
+    try {
+      const { inlineStudyImages } = require("./studyImages");
+      const parsed = JSON.parse(studies);
+      if (Array.isArray(parsed)) {
+        storage[STORAGE_KEYS.STUDIES] = JSON.stringify(
+          await Promise.all(
+            parsed.map(async (study) =>
+              typeof study?.content === "string"
+                ? { ...study, content: await inlineStudyImages(study.content) }
+                : study,
+            ),
+          ),
+        );
+      }
+    } catch {}
+  }
+  return storage;
 }
 
 export async function buildAppBackupPayload(): Promise<AppBackupPayload> {

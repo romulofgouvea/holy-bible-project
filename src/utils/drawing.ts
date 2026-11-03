@@ -41,6 +41,7 @@ export const SLIDER_GRADIENT_STOPS = [
 
 export const MIN_POINT_DISTANCE = 2;
 export const ERASE_RADIUS = 14;
+export const MIN_ERASE_RADIUS = 3;
 
 export const getVerseDrawingKey = (
   version: string,
@@ -258,9 +259,10 @@ export const findStrokeAt = (
   x: number,
   y: number,
   width: number,
+  radius: number = ERASE_RADIUS,
 ) => {
   for (let i = strokes.length - 1; i >= 0; i--) {
-    if (strokeHitsPoint(strokes[i], x, y, width)) return strokes[i];
+    if (strokeHitsPoint(strokes[i], x, y, width, radius)) return strokes[i];
   }
   return undefined;
 };

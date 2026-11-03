@@ -5,6 +5,26 @@ export type ChangelogItem = {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "1.5.0",
+    highlights: [
+      "Plano de leitura integrado à leitura: ao abrir um capítulo do plano, o fim da página mostra um card com o progresso, o dia, os capítulos e o botão para concluir e seguir para a próxima leitura não lida, com opção de desfazer",
+      "O capítulo do plano é marcado como lido quando você chega ao fim e fica ali por alguns segundos, e a leitura retoma exatamente do versículo em que você parou",
+      "No plano: capítulos coloridos em cada dia (lido e atrasado), toque longo no capítulo para ler ou marcar, aviso de dias seguidos, botão quadrado para voltar ao topo e marcação de vários dias anteriores de uma vez",
+      "Novo cartão Continuar na Bíblia, barra de progresso do capítulo no topo da leitura e pontinho nos capítulos que têm anotação, marcação ou desenho",
+      "Lembrete do plano mais inteligente: não avisa se o dia já foi concluído, sugere o seu horário de leitura mais comum e agenda os próximos 60 dias",
+      "Desenho muito melhor: traço livre por vários versículos, borracha que apaga o traço inteiro, refazer, cores recentes, deslizador vertical de espessura, marcador que fica atrás do texto, linha reta ao segurar o dedo e rolagem com dois dedos",
+      "Barra de desenho recolhível, sem espaço sobrando embaixo, e a opção Rabiscos da aparência agora se chama Desenhos",
+      "Deslizadores de cor e espessura do pincel mais fluidos, sem atraso, e o valor escolhido agora é salvo mesmo ao tirar o dedo para o lado",
+      "Anotações: nova aba Desenhos, busca por livro, texto ou versículo e seleção de várias anotações para enviar ao estudo de uma vez",
+      "Envie anotações de texto, cores e desenhos para um estudo, com título sugerido automaticamente e aviso com o atalho Ir para o estudo, que já rola até o conteúdo adicionado",
+      "Estudos: novo botão de caneta no editor, que abre a Bíblia para desenhar e insere o resultado no estudo como imagem, com o texto e o desenho",
+      "Estudos: reordene os blocos de versículos e desenhos com as setas, e as imagens agora ficam guardadas em arquivos, entram no PDF e no backup",
+      "Mais segurança nos estudos: editar ou adicionar conteúdo por telas diferentes não apaga mais o que foi feito, e o app avisa quando faltar espaço",
+      "Novo modo de leitura sem distração, disponível na Aparência e nas Configurações, que esconde a barra de localização e os botões flutuantes",
+      "Ajustes gerais de estabilidade e desempenho",
+    ],
+  },
+  {
     version: "1.4.8",
     highlights: [
       "Atualização para o Expo SDK 58",

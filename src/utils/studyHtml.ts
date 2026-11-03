@@ -31,3 +31,10 @@ export const buildStudyVerseBlock = ({
     : "";
   return `<blockquote class="bible-verse" contenteditable="false"><div class="remove-verse-btn" contenteditable="false">×</div><div class="verse-title">${escapeHtml(reference)}</div>${body}</blockquote>${note}<p><br></p>`;
 };
+
+export const buildStudyTitle = (references: string[]) => {
+  if (references.length === 0) return "";
+  return references.length === 1
+    ? references[0]
+    : `${references[0]} e mais ${references.length - 1}`;
+};

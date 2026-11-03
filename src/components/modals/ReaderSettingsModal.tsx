@@ -33,6 +33,8 @@ export function ReaderSettingsModal({
     setShouldShowTitles,
     shouldShowVerseNumbers,
     setShouldShowVerseNumbers,
+    isFocusMode,
+    setIsFocusMode,
   } = useReaderSettings();
   const { showDrawings, setShowDrawings } = useDrawings();
 
@@ -463,6 +465,57 @@ export function ReaderSettingsModal({
                         fontWeight: "700",
                         color:
                           shouldShowVerseNumbers === item.value
+                            ? colors.onPrimary
+                            : colors.onBackground,
+                      }}
+                    >
+                      {item.label}
+                    </BibleText>
+                  </TouchableOpacity>
+                  {index === 0 && (
+                    <BibleDivider vertical height="60%" color={dividerColor} />
+                  )}
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <BibleText
+              style={[styles.sectionTitle, { color: colors.textMuted }]}
+            >
+              Modo de leitura
+            </BibleText>
+            <View
+              style={[
+                styles.unifiedRow,
+                { backgroundColor: colors.surfaceHighlight },
+              ]}
+            >
+              {[
+                { label: "Normal", value: false },
+                { label: "Sem distração", value: true },
+              ].map((item, index) => (
+                <React.Fragment key={item.label}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      selectionHaptic();
+                      setIsFocusMode(item.value);
+                    }}
+                    style={[
+                      styles.segmentBtn,
+                      isFocusMode === item.value && {
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                    testID={`focus-mode-${item.value ? "on" : "off"}`}
+                  >
+                    <BibleText
+                      style={{
+                        fontSize: ms(DESIGN.fontSize.md),
+                        fontWeight: "700",
+                        color:
+                          isFocusMode === item.value
                             ? colors.onPrimary
                             : colors.onBackground,
                       }}

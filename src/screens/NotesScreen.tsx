@@ -1,7 +1,13 @@
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { BibleDrawerMenu } from "../components/BibleDrawerMenu";
 import { BibleHeader } from "../components/BibleHeader";
 import { BibleIcon } from "../components/BibleIcon";
@@ -24,7 +30,8 @@ import { useTheme } from "../hooks/useTheme";
 import { useToast } from "../hooks/useToast";
 import { StudyDrawingSelection } from "../utils/studyDrawingBridge";
 import { SelectedVerse, VerseNote } from "../models";
-import { buildStudyVerseBlock } from "../utils/studyHtml";
+import { matchesQuery } from "../utils/notesSearch";
+import { buildStudyTitle, buildStudyVerseBlock } from "../utils/studyHtml";
 import { formatVerseRanges } from "../utils/verseRange";
 
 type NotesTab = "text" | "colors" | "drawings";
@@ -68,9 +75,15 @@ export default function NotesScreen() {
   const [colorFilter, setColorFilter] = useState<string | null>(null);
 
   const { toast, opacity, show } = useToast();
-  const [captureSelection, setCaptureSelection] =
-    useState<StudyDrawingSelection | null>(null);
-  const [studyHtml, setStudyHtml] = useState<string | null>(null);
+  const [captureQueue, setCaptureQueue] = useState<StudyDrawingSelection[]>([]);
+  const [queuedHtml, setQueuedHtml] = useState<string[]>([]);
+  const [pendingTitle, setPendingTitle] = useState("");
+  const [studyPayload, setStudyPayload] = useState<{
+    html: string;
+    title: string;
+  } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [activeDrawing, setActiveDrawing] = useState<DrawingGroup | null>(null);
   const [isConfirmRemoveDrawing, setIsConfirmRemoveDrawing] = useState(false);
@@ -197,6 +210,59 @@ export default function NotesScreen() {
     return highlightGroups.filter((g) => g.color === effectiveColorFilter);
   }, [highlightGroups, effectiveColorFilter]);
 
+  const noteReference = (item: VerseNote) => {
+    const verses = item.selectedVerses as SelectedVerse[];
+    const first = verses[0];
+    const bookName =
+      versionBooks.find((b) => b.abbrev === first.bookAbbrev)?.name ||
+      first.bookAbbrev;
+    const { ranges, sameChapter } = formatVerseRanges(verses);
+    return sameChapter
+      ? `${bookName} ${first.chapter}:${ranges}`
+      : `${bookName} ${ranges}`;
+  };
+
+  const filteredNotes = useMemo(
+    () =>
+      validNotes.filter((n) =>
+        matchesQuery(
+          searchQuery,
+          n.text,
+          noteReference(n),
+          versionBooks.find((b) => b.abbrev === n.selectedVerses[0].bookAbbrev)
+            ?.chapters[n.selectedVerses[0].chapter - 1]?.[
+            n.selectedVerses[0].verse - 1
+          ],
+        ),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [validNotes, searchQuery, versionBooks],
+  );
+
+  const searchedHighlightGroups = useMemo(
+    () =>
+      filteredHighlightGroups.filter((g) =>
+        matchesQuery(
+          searchQuery,
+          `${g.bookName} ${g.chapter}:${g.verses[0]}`,
+          g.text,
+        ),
+      ),
+    [filteredHighlightGroups, searchQuery],
+  );
+
+  const searchedDrawingGroups = useMemo(
+    () =>
+      drawingGroups.filter((g) =>
+        matchesQuery(
+          searchQuery,
+          `${g.bookName} ${g.chapter}:${g.verses[0]}`,
+          g.text,
+        ),
+      ),
+    [drawingGroups, searchQuery],
+  );
+
   const getColorHex = (id: string) =>
     VERSE_HIGHLIGHTS.find((c) => c.id === id)?.hex || colors.primary;
 
@@ -254,6 +320,42 @@ export default function NotesScreen() {
         },
         tabContent: {
           flex: 1,
+        },
+        searchBox: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: ms(DESIGN.spacing.sm),
+          marginHorizontal: ms(DESIGN.spacing.lg),
+          marginTop: ms(DESIGN.spacing.md),
+          paddingHorizontal: ms(DESIGN.spacing.md),
+          height: ms(DESIGN.height.md),
+          borderRadius: ms(DESIGN.borderRadius.md),
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+        },
+        searchInput: {
+          flex: 1,
+          color: colors.onSurface,
+          fontSize: ms(DESIGN.fontSize.md),
+          paddingVertical: 0,
+        },
+        selectionBar: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: ms(DESIGN.spacing.md),
+          marginHorizontal: ms(DESIGN.spacing.lg),
+          marginTop: ms(DESIGN.spacing.md),
+          paddingHorizontal: ms(DESIGN.spacing.md),
+          height: ms(DESIGN.height.md),
+          borderRadius: ms(DESIGN.borderRadius.md),
+          backgroundColor: colors.primary + "15",
+          borderWidth: 1,
+          borderColor: colors.primary + "40",
+        },
+        cardSelected: {
+          borderColor: colors.primary,
+          backgroundColor: colors.primary + "10",
         },
         filterScroll: {
           flexGrow: 0,
@@ -401,9 +503,10 @@ export default function NotesScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
         activeOpacity={0.8}
-        onPress={() => handleReadNote(item)}
+        onPress={() => handleCardPress(item.id, () => handleReadNote(item))}
+        onLongPress={() => toggleSelected(item.id)}
       >
         <View style={styles.cardHeader}>
           <View
@@ -430,7 +533,7 @@ export default function NotesScreen() {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => handleAddNoteToStudy(item)}
+              onPress={() => startAddToStudy([item.id])}
               testID="note-add-to-study"
             >
               <BibleIcon
@@ -483,45 +586,50 @@ export default function NotesScreen() {
     router.navigate(ROUTES.BIBLE as any);
   };
 
-  const handleAddNoteToStudy = (item: VerseNote) => {
-    const verses = item.selectedVerses as SelectedVerse[];
-    const first = verses[0];
-    const book = versionBooks.find((b) => b.abbrev === first.bookAbbrev);
-    const bookName = book?.name || first.bookAbbrev;
-    const { ranges, sameChapter } = formatVerseRanges(verses);
-    const reference = `${sameChapter ? `${bookName} ${first.chapter}:${ranges}` : `${bookName} ${ranges}`} (${version})`;
-    setStudyHtml(
-      buildStudyVerseBlock({
-        reference,
-        lines: verses.map((v) => ({
-          verse: v.verse,
-          text: book?.chapters[v.chapter - 1]?.[v.verse - 1] || "",
-        })),
-        noteText: item.text,
-      }),
-    );
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const handleCardPress = (id: string, open: () => void) => {
+    if (selectedIds.size > 0) toggleSelected(id);
+    else open();
   };
 
-  const handleAddHighlightToStudy = (group: HighlightGroup) => {
+  const buildNoteHtml = (item: VerseNote) => {
+    const verses = item.selectedVerses as SelectedVerse[];
+    const book = versionBooks.find((b) => b.abbrev === verses[0].bookAbbrev);
+    return buildStudyVerseBlock({
+      reference: `${noteReference(item)} (${version})`,
+      lines: verses.map((v) => ({
+        verse: v.verse,
+        text: book?.chapters[v.chapter - 1]?.[v.verse - 1] || "",
+      })),
+      noteText: item.text,
+    });
+  };
+
+  const buildHighlightHtml = (group: HighlightGroup) => {
     const book = versionBooks.find((b) => b.abbrev === group.abbrev);
     const { ranges } = formatVerseRanges(group.verses);
-    setStudyHtml(
-      buildStudyVerseBlock({
-        reference: `${group.bookName} ${group.chapter}:${ranges} (${version})`,
-        lines: group.verses.map((verse) => ({
-          verse,
-          text: book?.chapters[group.chapter - 1]?.[verse - 1] || "",
-        })),
-        highlightHex: getColorHex(group.color),
-      }),
-    );
+    return buildStudyVerseBlock({
+      reference: `${group.bookName} ${group.chapter}:${ranges} (${version})`,
+      lines: group.verses.map((verse) => ({
+        verse,
+        text: book?.chapters[group.chapter - 1]?.[verse - 1] || "",
+      })),
+      highlightHex: getColorHex(group.color),
+    });
   };
 
-  const handleAddDrawingToStudy = (group: DrawingGroup) => {
+  const toDrawingSelection = (group: DrawingGroup): StudyDrawingSelection => {
     const book = getBibleData(group.version).find(
       (b) => b.abbrev === group.abbrev,
     );
-    setCaptureSelection({
+    return {
       version: group.version,
       bookAbbrev: group.abbrev,
       bookName: group.bookName,
@@ -530,13 +638,48 @@ export default function NotesScreen() {
         verse,
         text: book?.chapters[group.chapter - 1]?.[verse - 1] || "",
       })),
-    });
+    };
+  };
+
+  const groupReference = (group: HighlightGroup | DrawingGroup) =>
+    `${group.bookName} ${group.chapter}:${formatVerseRanges(group.verses).ranges}`;
+
+  const startAddToStudy = (ids: string[]) => {
+    setSelectedIds(new Set());
+    if (activeTab === "text") {
+      const items = validNotes.filter((n) => ids.includes(n.id));
+      setStudyPayload({
+        html: items.map(buildNoteHtml).join(""),
+        title: buildStudyTitle(items.map(noteReference)),
+      });
+    } else if (activeTab === "colors") {
+      const groups = highlightGroups.filter((g) => ids.includes(g.id));
+      setStudyPayload({
+        html: groups.map(buildHighlightHtml).join(""),
+        title: buildStudyTitle(groups.map(groupReference)),
+      });
+    } else {
+      const groups = drawingGroups.filter((g) => ids.includes(g.id));
+      setQueuedHtml([]);
+      setPendingTitle(buildStudyTitle(groups.map(groupReference)));
+      setCaptureQueue(groups.map(toDrawingSelection));
+    }
   };
 
   const handleDrawingCaptured = (html: string | null) => {
-    setCaptureSelection(null);
-    if (html) setStudyHtml(html);
-    else show("Não foi possível gerar a imagem do desenho", "warning");
+    const collected = html ? [...queuedHtml, html] : queuedHtml;
+    if (captureQueue.length > 1) {
+      setQueuedHtml(collected);
+      setCaptureQueue((queue) => queue.slice(1));
+      return;
+    }
+    setCaptureQueue([]);
+    setQueuedHtml([]);
+    if (collected.length > 0) {
+      setStudyPayload({ html: collected.join(""), title: pendingTitle });
+    } else {
+      show("Não foi possível gerar a imagem do desenho", "warning");
+    }
   };
 
   const renderDrawing = ({ item }: { item: DrawingGroup }) => {
@@ -548,9 +691,11 @@ export default function NotesScreen() {
           styles.card,
           styles.highlightCard,
           { borderLeftColor: colors.primary },
+          selectedIds.has(item.id) && styles.cardSelected,
         ]}
         activeOpacity={0.8}
-        onPress={() => handleReadDrawing(item)}
+        onPress={() => handleCardPress(item.id, () => handleReadDrawing(item))}
+        onLongPress={() => toggleSelected(item.id)}
       >
         <View style={styles.cardHeader}>
           <View
@@ -577,7 +722,7 @@ export default function NotesScreen() {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => handleAddDrawingToStudy(item)}
+              onPress={() => startAddToStudy([item.id])}
               testID="drawing-add-to-study"
             >
               <BibleIcon
@@ -620,9 +765,17 @@ export default function NotesScreen() {
 
     return (
       <TouchableOpacity
-        style={[styles.card, styles.highlightCard, { borderLeftColor: hex }]}
+        style={[
+          styles.card,
+          styles.highlightCard,
+          { borderLeftColor: hex },
+          selectedIds.has(item.id) && styles.cardSelected,
+        ]}
         activeOpacity={0.8}
-        onPress={() => handleReadHighlight(item)}
+        onPress={() =>
+          handleCardPress(item.id, () => handleReadHighlight(item))
+        }
+        onLongPress={() => toggleSelected(item.id)}
       >
         <View style={styles.cardHeader}>
           <View
@@ -642,7 +795,7 @@ export default function NotesScreen() {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => handleAddHighlightToStudy(item)}
+              onPress={() => startAddToStudy([item.id])}
               testID="highlight-add-to-study"
             >
               <BibleIcon
@@ -715,7 +868,10 @@ export default function NotesScreen() {
                     styles.tabBtn,
                     isActive && { backgroundColor: colors.primary },
                   ]}
-                  onPress={() => setActiveTab(tab.key)}
+                  onPress={() => {
+                    setActiveTab(tab.key);
+                    setSelectedIds(new Set());
+                  }}
                   activeOpacity={0.8}
                 >
                   <BibleIcon
@@ -736,6 +892,78 @@ export default function NotesScreen() {
             })}
           </View>
 
+          {selectedIds.size > 0 ? (
+            <View style={styles.selectionBar}>
+              <BibleIcon
+                name="x"
+                color={colors.textMuted}
+                size={ms(DESIGN.icon.md)}
+                onPress={() => setSelectedIds(new Set())}
+              />
+              <BibleText
+                style={{
+                  flex: 1,
+                  fontWeight: "800",
+                  fontSize: ms(DESIGN.fontSize.md),
+                  color: colors.primary,
+                }}
+              >
+                {selectedIds.size}{" "}
+                {selectedIds.size === 1 ? "selecionada" : "selecionadas"}
+              </BibleText>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: ms(DESIGN.spacing.xs),
+                }}
+                onPress={() => startAddToStudy(Array.from(selectedIds))}
+                testID="notes-add-selected-to-study"
+              >
+                <BibleIcon
+                  name="file-plus"
+                  color={colors.primary}
+                  size={ms(DESIGN.icon.md)}
+                />
+                <BibleText
+                  style={{
+                    fontWeight: "800",
+                    fontSize: ms(DESIGN.fontSize.sm),
+                    color: colors.primary,
+                  }}
+                >
+                  Adicionar ao estudo
+                </BibleText>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.searchBox}>
+              <BibleIcon
+                name="search"
+                color={colors.textMuted}
+                size={ms(DESIGN.icon.sm)}
+              />
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Buscar nas anotações"
+                placeholderTextColor={colors.textMuted}
+                autoCorrect={false}
+                underlineColorAndroid="transparent"
+                testID="notes-search-input"
+              />
+              {searchQuery.length > 0 && (
+                <BibleIcon
+                  name="x"
+                  color={colors.textMuted}
+                  size={ms(DESIGN.icon.sm)}
+                  onPress={() => setSearchQuery("")}
+                />
+              )}
+            </View>
+          )}
+
           <View style={styles.tabContent}>
             {activeTab === "text" ? (
               validNotes.length === 0 ? (
@@ -752,7 +980,8 @@ export default function NotesScreen() {
                 </View>
               ) : (
                 <FlashList
-                  data={validNotes}
+                  data={filteredNotes}
+                  extraData={selectedIds}
                   keyExtractor={(item) => item.id}
                   renderItem={renderNote}
                   // @ts-ignore
@@ -776,7 +1005,8 @@ export default function NotesScreen() {
                 </View>
               ) : (
                 <FlashList
-                  data={drawingGroups}
+                  data={searchedDrawingGroups}
+                  extraData={selectedIds}
                   keyExtractor={(item) => item.id}
                   renderItem={renderDrawing}
                   // @ts-ignore
@@ -879,7 +1109,8 @@ export default function NotesScreen() {
 
                 <View style={styles.tabContent}>
                   <FlashList
-                    data={filteredHighlightGroups}
+                    data={searchedHighlightGroups}
+                    extraData={selectedIds}
                     keyExtractor={(item) => item.id}
                     renderItem={renderHighlight}
                     // @ts-ignore
@@ -931,18 +1162,20 @@ export default function NotesScreen() {
         }}
       />
 
-      {captureSelection && (
+      {captureQueue.length > 0 && (
         <StudyDrawingCapture
-          selection={captureSelection}
+          key={`${captureQueue[0].version}-${captureQueue[0].bookAbbrev}-${captureQueue[0].chapter}-${captureQueue[0].verses[0].verse}`}
+          selection={captureQueue[0]}
           onDone={handleDrawingCaptured}
         />
       )}
 
       <BibleAddToStudyModal
-        visible={studyHtml !== null}
-        onClose={() => setStudyHtml(null)}
+        visible={studyPayload !== null}
+        onClose={() => setStudyPayload(null)}
         selectedVerses={[]}
-        customHtml={studyHtml ?? undefined}
+        customHtml={studyPayload?.html}
+        suggestedTitle={studyPayload?.title}
         onShowToast={show}
       />
 
