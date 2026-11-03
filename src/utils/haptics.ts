@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
-let hapticsEnabled = true;
+let hapticsEnabled = false;
 
 export const setHapticsGlobal = (enabled: boolean) => {
   hapticsEnabled = enabled;

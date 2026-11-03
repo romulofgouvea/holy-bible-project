@@ -41,6 +41,7 @@ export const PlanResumeCard = React.memo(() => {
         name="play-circle"
         color={colors.primary}
         size={fs(DESIGN.icon.lg)}
+        containerSize={DESIGN.icon.lg * fontSizeMultiplier}
       />
       <View style={{ flex: 1 }}>
         <BibleText
@@ -74,6 +75,7 @@ export const PlanResumeCard = React.memo(() => {
           name="x"
           color={colors.textMuted}
           size={fs(DESIGN.icon.md)}
+          containerSize={DESIGN.icon.md * fontSizeMultiplier}
         />
       </TouchableOpacity>
     </TouchableOpacity>

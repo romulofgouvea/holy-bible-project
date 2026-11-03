@@ -99,6 +99,7 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
     styles,
     onPress,
   } = props;
+  const { lineSpacing } = useReaderSettings();
 
   if (!verseItem) {
     return <View style={styles.comparisonCol} />;
@@ -207,7 +208,9 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
           {
             fontSize: ms(DESIGN.fontSize.lg * fontSizeMultiplier),
             lineHeight: ms(
-              DESIGN.fontSize.lg * fontSizeMultiplier * DESIGN.lineHeight.md,
+              DESIGN.fontSize.lg *
+                fontSizeMultiplier *
+                DESIGN.lineHeight[lineSpacing],
             ),
             color: readerColors.onBackground,
             textAlign: textAlign as any,

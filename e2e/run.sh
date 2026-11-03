@@ -110,17 +110,10 @@ section_appearance() {
   tap_pair "$ARIA"
   wait_a_bit 1.5
   check "modal de aparencia" "Aparência (Aa)"
-  check "secao modo de leitura" "Modo de leitura"
+  check "secao texto" "Espaçamento entre Linhas"
+  check "secao exibicao" "Modo sem distração"
   check "secao desenhos (antes rabiscos)" "Desenhos"
   check_absent "nome antigo rabiscos" "Rabiscos"
-  tap_text "Sem distração" 0 1
-  adb shell input keyevent 4
-  wait_a_bit 1
-  shot focus-on
-  check_absent "barra de localizacao oculta" "Gênesis"
-  tap_pair "$ARIA"
-  wait_a_bit 1.5
-  tap_text "Normal" 0 1
   adb shell input keyevent 4
   wait_a_bit 1
 }

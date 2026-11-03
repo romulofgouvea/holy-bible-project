@@ -1,15 +1,56 @@
-import React, { useMemo } from "react";
+import * as Brightness from "expo-brightness";
+import React, { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ROUTE_LABELS } from "../../constants/routes";
 import { useDrawings } from "../../hooks/useDrawings";
 import { useReaderSettings } from "../../hooks/useReaderSettings";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../hooks/useTheme";
+import { LineSpacing, ReaderFont, ReaderTheme, TextAlign } from "../../models";
 import { selectionHaptic } from "../../utils/haptics";
 import { BibleDivider } from "../BibleDivider";
-import { BibleIcon } from "../BibleIcon";
+import { BibleIcon, BibleIconProps } from "../BibleIcon";
+import { BibleSwitch } from "../BibleSwitch";
 import { BibleText } from "../BibleText";
+import { HorizontalSlider } from "../HorizontalSlider";
 import { BiblePageModal } from "./BiblePageModal";
+
+const DIVIDER_COLOR = "rgba(0,0,0,0.05)";
+const PREVIEW_TEXT = "No princípio, Deus criou os céus e a terra.";
+const DEFAULT_BRIGHTNESS = 0.5;
+
+type SegmentOption<T> = {
+  value: T;
+  label?: string;
+  icon?: BibleIconProps["name"];
+  fontFamily?: string;
+};
+
+const THEME_OPTIONS: SegmentOption<ReaderTheme>[] = [
+  { value: "light", label: "Claro" },
+  { value: "sepia", label: "Sépia" },
+  { value: "dark", label: "Escuro" },
+  { value: "black", label: "Preto" },
+];
+
+const FONT_OPTIONS: SegmentOption<ReaderFont>[] = [
+  { value: "poppins", label: "Poppins" },
+  { value: "lora", label: "Lora", fontFamily: "Lora_400Regular" },
+  { value: "monospace", label: "Mono", fontFamily: "monospace" },
+];
+
+const ALIGN_OPTIONS: SegmentOption<TextAlign>[] = [
+  { value: "left", icon: "align-left" },
+  { value: "center", icon: "align-center" },
+  { value: "right", icon: "align-right" },
+  { value: "justify", icon: "align-justify" },
+];
+
+const SPACING_OPTIONS: SegmentOption<LineSpacing>[] = [
+  { value: "sm", label: "Compacto" },
+  { value: "md", label: "Normal" },
+  { value: "lg", label: "Amplo" },
+];
 
 export function ReaderSettingsModal({
   visible,
@@ -19,7 +60,7 @@ export function ReaderSettingsModal({
   onClose: () => void;
 }) {
   const { ms, DESIGN } = useResponsive();
-  const { colors, toggleDarkMode, isDarkMode } = useTheme();
+  const { colors, toggleDarkMode } = useTheme();
   const {
     fontSizeMultiplier,
     setFontSizeMultiplier,
@@ -29,26 +70,83 @@ export function ReaderSettingsModal({
     setReaderTheme,
     readerFont,
     setReaderFont,
+    readerColors,
+    lineSpacing,
+    setLineSpacing,
     shouldShowTitles,
     setShouldShowTitles,
     shouldShowVerseNumbers,
     setShouldShowVerseNumbers,
     isFocusMode,
     setIsFocusMode,
+    readerBrightness,
+    setReaderBrightness,
+    isKeepAwake,
+    setIsKeepAwake,
   } = useReaderSettings();
   const { showDrawings, setShowDrawings } = useDrawings();
+  const [isScrollEnabled, setIsScrollEnabled] = useState(true);
+  const [previewSize, setPreviewSize] = useState<number | null>(null);
+  const [previewBrightness, setPreviewBrightness] = useState<number | null>(
+    null,
+  );
 
-  const handleSetTheme = (theme: "light" | "dark" | "sepia") => {
+  const handleSetTheme = useCallback(
+    (theme: ReaderTheme) => {
+      selectionHaptic();
+      setReaderTheme(theme);
+      toggleDarkMode(theme === "dark" || theme === "black");
+    },
+    [setReaderTheme, toggleDarkMode],
+  );
+
+  const handleDragChange = useCallback(
+    (isDragging: boolean) => setIsScrollEnabled(!isDragging),
+    [],
+  );
+
+  const handleSizeComplete = useCallback(
+    (val: number) => {
+      setFontSizeMultiplier(val);
+      setPreviewSize(null);
+    },
+    [setFontSizeMultiplier],
+  );
+
+  const handleResetSize = useCallback(() => {
     selectionHaptic();
-    setReaderTheme(theme);
-    toggleDarkMode(theme === "dark");
-  };
+    setFontSizeMultiplier(1);
+  }, [setFontSizeMultiplier]);
+
+  const handleBrightnessComplete = useCallback(
+    (val: number) => {
+      setReaderBrightness(val);
+      setPreviewBrightness(null);
+    },
+    [setReaderBrightness],
+  );
+
+  const handleToggleSystemBrightness = useCallback(
+    async (isSystem: boolean) => {
+      if (isSystem) {
+        setReaderBrightness(null);
+        return;
+      }
+      try {
+        setReaderBrightness(await Brightness.getBrightnessAsync());
+      } catch (e) {
+        setReaderBrightness(DEFAULT_BRIGHTNESS);
+      }
+    },
+    [setReaderBrightness],
+  );
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
         content: {
           padding: ms(DESIGN.spacing.lg),
+          paddingBottom: ms(DESIGN.spacing.giant),
         },
         header: {
           flexDirection: "row",
@@ -61,8 +159,35 @@ export function ReaderSettingsModal({
         settingsWrapper: {
           gap: ms(DESIGN.spacing.lg),
         },
+        preview: {
+          padding: ms(DESIGN.spacing.lg),
+          borderRadius: ms(DESIGN.borderRadius.lg),
+          borderWidth: 1,
+        },
+        group: {
+          gap: ms(DESIGN.spacing.md),
+        },
+        groupHeader: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: ms(DESIGN.spacing.sm),
+          paddingTop: ms(DESIGN.spacing.sm),
+        },
+        groupTitle: {
+          fontSize: ms(DESIGN.fontSize.md),
+          fontWeight: "800",
+        },
+        groupLine: {
+          flex: 1,
+          height: 1,
+        },
         section: {
           gap: ms(DESIGN.fontSize.xs),
+        },
+        sectionHeader: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
         },
         sectionTitle: {
           fontSize: ms(DESIGN.fontSize.xs),
@@ -71,6 +196,10 @@ export function ReaderSettingsModal({
           letterSpacing: 1,
           opacity: 0.6,
         },
+        resetText: {
+          fontSize: ms(DESIGN.fontSize.xs),
+          fontWeight: "700",
+        },
         unifiedRow: {
           flexDirection: "row",
           height: ms(DESIGN.height.md),
@@ -78,27 +207,34 @@ export function ReaderSettingsModal({
           alignItems: "center",
           overflow: "hidden",
         },
-        controlBtn: {
-          width: ms(DESIGN.spacing.giant),
-          height: "100%",
+        sliderRow: {
+          flexDirection: "row",
           alignItems: "center",
-          justifyContent: "center",
+          gap: ms(DESIGN.spacing.md),
+          paddingHorizontal: ms(DESIGN.spacing.md),
+          borderRadius: ms(DESIGN.borderRadius.md),
         },
-        controlText: {
-          fontSize: ms(DESIGN.fontSize.lg),
-          fontWeight: "700",
-        },
-        percentageDisplay: {
+        sliderFlex: {
           flex: 1,
-          height: "100%",
-          alignItems: "center",
-          justifyContent: "center",
-          borderLeftWidth: 1,
-          borderRightWidth: 1,
         },
-        percentageText: {
-          fontSize: ms(DESIGN.fontSize.lg),
+        sliderValue: {
+          minWidth: ms(DESIGN.spacing.giant),
+          textAlign: "right",
+          fontSize: ms(DESIGN.fontSize.md),
           fontWeight: "800",
+        },
+        switchRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          minHeight: ms(DESIGN.height.md),
+          paddingHorizontal: ms(DESIGN.spacing.md),
+          borderRadius: ms(DESIGN.borderRadius.md),
+        },
+        switchLabel: {
+          flex: 1,
+          fontSize: ms(DESIGN.fontSize.md),
+          fontWeight: "700",
         },
         segmentBtn: {
           flex: 1,
@@ -107,12 +243,102 @@ export function ReaderSettingsModal({
           justifyContent: "center",
         },
       }),
-    [ms, colors, DESIGN],
+    [ms, DESIGN],
   );
 
   if (!visible) return null;
 
-  const dividerColor = "rgba(0,0,0,0.05)";
+  const effectiveSize = previewSize ?? fontSizeMultiplier;
+  const previewFontSize = ms(DESIGN.fontSize.xl * effectiveSize);
+  const brightnessValue = previewBrightness ?? readerBrightness ?? 0;
+
+  const renderGroupHeader = (title: string) => (
+    <View style={styles.groupHeader}>
+      <BibleText style={[styles.groupTitle, { color: colors.primary }]}>
+        {title}
+      </BibleText>
+      <View style={[styles.groupLine, { backgroundColor: colors.border }]} />
+    </View>
+  );
+
+  const renderSegments = <T extends string>(
+    options: SegmentOption<T>[],
+    selected: T,
+    onSelect: (value: T) => void,
+  ) => (
+    <View
+      style={[styles.unifiedRow, { backgroundColor: colors.surfaceHighlight }]}
+    >
+      {options.map((option, index) => {
+        const isSelected = selected === option.value;
+        const next = options[index + 1];
+        const contentColor = isSelected
+          ? colors.onPrimary
+          : colors.onBackground;
+        return (
+          <React.Fragment key={option.value}>
+            <TouchableOpacity
+              onPress={() => {
+                selectionHaptic();
+                onSelect(option.value);
+              }}
+              style={[
+                styles.segmentBtn,
+                isSelected && { backgroundColor: colors.primary },
+              ]}
+              testID={`reader-option-${option.value}`}
+            >
+              {option.icon ? (
+                <BibleIcon
+                  name={option.icon}
+                  size={ms(DESIGN.fontSize.xl)}
+                  color={contentColor}
+                />
+              ) : (
+                <BibleText
+                  style={{
+                    fontSize: ms(DESIGN.fontSize.md),
+                    fontWeight: "700",
+                    color: contentColor,
+                    fontFamily: option.fontFamily,
+                  }}
+                >
+                  {option.label}
+                </BibleText>
+              )}
+            </TouchableOpacity>
+            {next && !isSelected && selected !== next.value && (
+              <BibleDivider vertical height="60%" color={DIVIDER_COLOR} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+
+  const renderSwitch = (
+    label: string,
+    value: boolean,
+    onValueChange: (value: boolean) => void,
+  ) => (
+    <View
+      style={[styles.switchRow, { backgroundColor: colors.surfaceHighlight }]}
+    >
+      <BibleText style={[styles.switchLabel, { color: colors.onBackground }]}>
+        {label}
+      </BibleText>
+      <BibleSwitch value={value} onValueChange={onValueChange} />
+    </View>
+  );
+
+  const renderSection = (title: string, children: React.ReactNode) => (
+    <View style={styles.section}>
+      <BibleText style={[styles.sectionTitle, { color: colors.textMuted }]}>
+        {title}
+      </BibleText>
+      {children}
+    </View>
+  );
 
   return (
     <BiblePageModal
@@ -148,437 +374,168 @@ export function ReaderSettingsModal({
     >
       <ScrollView
         contentContainerStyle={styles.content}
+        scrollEnabled={isScrollEnabled}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.settingsWrapper}>
-          {/* Theme Section */}
-          <View style={styles.section}>
+          <View
+            style={[
+              styles.preview,
+              {
+                backgroundColor: readerColors.background,
+                borderColor: colors.border,
+              },
+            ]}
+            testID="reader-preview"
+          >
             <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
+              variant="reading"
+              style={{
+                fontSize: previewFontSize,
+                lineHeight: previewFontSize * DESIGN.lineHeight[lineSpacing],
+                color: readerColors.onBackground,
+                textAlign,
+              }}
             >
-              Tema de Leitura
+              {shouldShowVerseNumbers && (
+                <BibleText
+                  style={{
+                    fontSize: previewFontSize * 0.6,
+                    fontWeight: "700",
+                    color: readerColors.primary,
+                  }}
+                >
+                  1{"  "}
+                </BibleText>
+              )}
+              {PREVIEW_TEXT}
             </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              {(["light", "sepia", "dark"] as const).map((t, index) => (
-                <React.Fragment key={t}>
-                  <TouchableOpacity
-                    onPress={() => handleSetTheme(t)}
-                    style={[
-                      styles.segmentBtn,
-                      readerTheme === t && { backgroundColor: colors.primary },
-                    ]}
-                  >
-                    <BibleText
-                      style={{
-                        fontSize: ms(DESIGN.fontSize.md),
-                        fontWeight: "700",
-                        color:
-                          readerTheme === t
-                            ? colors.onPrimary
-                            : colors.onBackground,
-                      }}
-                    >
-                      {t === "light"
-                        ? "Claro"
-                        : t === "dark"
-                          ? "Escuro"
-                          : "Sépia"}
-                    </BibleText>
-                  </TouchableOpacity>
-                  {index < 2 &&
-                    readerTheme !== t &&
-                    (["light", "sepia", "dark"] as const)[index + 1] !==
-                      readerTheme && (
-                      <BibleDivider
-                        vertical
-                        height="60%"
-                        color={dividerColor}
-                      />
-                    )}
-                </React.Fragment>
-              ))}
-            </View>
           </View>
 
-          {/* Font Size Section */}
-          <View style={styles.section}>
-            <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
-            >
-              Tamanho da Fonte
-            </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  selectionHaptic();
-                  setFontSizeMultiplier(
-                    Math.max(0.7, fontSizeMultiplier - 0.1),
-                  );
-                }}
-                style={styles.controlBtn}
-              >
+          <View style={styles.group}>
+            {renderGroupHeader("Texto")}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
                 <BibleText
-                  style={[styles.controlText, { color: colors.primary }]}
+                  style={[styles.sectionTitle, { color: colors.textMuted }]}
                 >
-                  A-
+                  Tamanho da Fonte
                 </BibleText>
-              </TouchableOpacity>
+                {Math.abs(fontSizeMultiplier - 1) > 0.001 && (
+                  <TouchableOpacity
+                    onPress={handleResetSize}
+                    testID="reader-size-reset"
+                  >
+                    <BibleText
+                      style={[styles.resetText, { color: colors.primary }]}
+                    >
+                      Restaurar padrão
+                    </BibleText>
+                  </TouchableOpacity>
+                )}
+              </View>
               <View
                 style={[
-                  styles.percentageDisplay,
-                  { borderColor: dividerColor },
+                  styles.sliderRow,
+                  { backgroundColor: colors.surfaceHighlight },
                 ]}
               >
+                <View style={styles.sliderFlex}>
+                  <HorizontalSlider
+                    value={fontSizeMultiplier}
+                    min={0.7}
+                    max={2}
+                    step={0.05}
+                    onPreview={setPreviewSize}
+                    onComplete={handleSizeComplete}
+                    onDragChange={handleDragChange}
+                    testID="reader-size-slider"
+                  />
+                </View>
                 <BibleText
-                  style={[
-                    styles.percentageText,
-                    { color: colors.onBackground },
-                  ]}
+                  style={[styles.sliderValue, { color: colors.onBackground }]}
                 >
-                  {Math.round(fontSizeMultiplier * 100)}%
+                  {Math.round(effectiveSize * 100)}%
                 </BibleText>
               </View>
-              <TouchableOpacity
-                onPress={() => {
-                  selectionHaptic();
-                  setFontSizeMultiplier(
-                    Math.min(2.0, fontSizeMultiplier + 0.1),
-                  );
-                }}
-                style={styles.controlBtn}
+            </View>
+            {renderSection(
+              "Espaçamento entre Linhas",
+              renderSegments(SPACING_OPTIONS, lineSpacing, setLineSpacing),
+            )}
+            {renderSection(
+              "Alinhamento",
+              renderSegments(ALIGN_OPTIONS, textAlign, setTextAlign),
+            )}
+            {renderSection(
+              "Tipo de Fonte",
+              renderSegments(FONT_OPTIONS, readerFont, setReaderFont),
+            )}
+          </View>
+
+          <View style={styles.group}>
+            {renderGroupHeader("Cores")}
+            {renderSection(
+              "Tema de Leitura",
+              renderSegments(THEME_OPTIONS, readerTheme, handleSetTheme),
+            )}
+          </View>
+
+          <View style={styles.group}>
+            {renderGroupHeader("Exibição")}
+            {renderSwitch(
+              "Títulos dos textos",
+              shouldShowTitles,
+              setShouldShowTitles,
+            )}
+            {renderSwitch(
+              "Números dos versículos",
+              shouldShowVerseNumbers,
+              setShouldShowVerseNumbers,
+            )}
+            {renderSwitch("Desenhos", showDrawings, setShowDrawings)}
+            {renderSwitch("Modo sem distração", isFocusMode, setIsFocusMode)}
+          </View>
+
+          <View style={styles.group}>
+            {renderGroupHeader("Tela")}
+            {renderSwitch("Manter a tela acesa", isKeepAwake, setIsKeepAwake)}
+            {renderSwitch(
+              "Brilho do sistema",
+              readerBrightness === null,
+              handleToggleSystemBrightness,
+            )}
+            {readerBrightness !== null && (
+              <View
+                style={[
+                  styles.sliderRow,
+                  { backgroundColor: colors.surfaceHighlight },
+                ]}
               >
+                <BibleIcon
+                  name="sun"
+                  size={ms(DESIGN.fontSize.xl)}
+                  color={colors.primary}
+                />
+                <View style={styles.sliderFlex}>
+                  <HorizontalSlider
+                    value={readerBrightness}
+                    min={0.05}
+                    max={1}
+                    step={0.05}
+                    onPreview={setPreviewBrightness}
+                    onComplete={handleBrightnessComplete}
+                    onDragChange={handleDragChange}
+                    testID="reader-brightness-slider"
+                  />
+                </View>
                 <BibleText
-                  style={[styles.controlText, { color: colors.primary }]}
+                  style={[styles.sliderValue, { color: colors.onBackground }]}
                 >
-                  A+
+                  {Math.round(brightnessValue * 100)}%
                 </BibleText>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Text Alignment Section */}
-          <View style={styles.section}>
-            <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
-            >
-              Alinhamento
-            </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              {(["left", "center", "right", "justify"] as const).map(
-                (a, index) => (
-                  <React.Fragment key={a}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        selectionHaptic();
-                        setTextAlign(a);
-                      }}
-                      style={[
-                        styles.segmentBtn,
-                        textAlign === a && { backgroundColor: colors.primary },
-                      ]}
-                    >
-                      <BibleIcon
-                        name={
-                          a === "left"
-                            ? "align-left"
-                            : a === "center"
-                              ? "align-center"
-                              : a === "right"
-                                ? "align-right"
-                                : "align-justify"
-                        }
-                        size={ms(DESIGN.fontSize.xl)}
-                        color={
-                          textAlign === a
-                            ? colors.onPrimary
-                            : colors.onBackground
-                        }
-                      />
-                    </TouchableOpacity>
-                    {index < 3 &&
-                      textAlign !== a &&
-                      (["left", "center", "right", "justify"] as const)[
-                        index + 1
-                      ] !== textAlign && (
-                        <BibleDivider
-                          vertical
-                          height="60%"
-                          color={dividerColor}
-                        />
-                      )}
-                  </React.Fragment>
-                ),
-              )}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
-            >
-              Tipo de Fonte
-            </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              {(["poppins", "monospace"] as const).map((f, index) => (
-                <React.Fragment key={f}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      selectionHaptic();
-                      setReaderFont(f);
-                    }}
-                    style={[
-                      styles.segmentBtn,
-                      readerFont === f && { backgroundColor: colors.primary },
-                    ]}
-                  >
-                    <BibleText
-                      style={{
-                        fontSize: ms(DESIGN.fontSize.md),
-                        fontWeight: "700",
-                        color:
-                          readerFont === f
-                            ? colors.onPrimary
-                            : colors.onBackground,
-                        fontFamily: f === "monospace" ? "monospace" : undefined,
-                      }}
-                    >
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </BibleText>
-                  </TouchableOpacity>
-                  {index < 1 &&
-                    readerFont !== f &&
-                    (["poppins", "monospace"] as const)[index + 1] !==
-                      readerFont && (
-                      <BibleDivider
-                        vertical
-                        height="60%"
-                        color={dividerColor}
-                      />
-                    )}
-                </React.Fragment>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
-            >
-              Títulos dos Textos
-            </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              {[
-                { label: "Ocultar", value: false },
-                { label: "Exibir", value: true },
-              ].map((item, index) => (
-                <React.Fragment key={item.label}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      selectionHaptic();
-                      setShouldShowTitles(item.value);
-                    }}
-                    style={[
-                      styles.segmentBtn,
-                      shouldShowTitles === item.value && {
-                        backgroundColor: colors.primary,
-                      },
-                    ]}
-                  >
-                    <BibleText
-                      style={{
-                        fontSize: ms(DESIGN.fontSize.md),
-                        fontWeight: "700",
-                        color:
-                          shouldShowTitles === item.value
-                            ? colors.onPrimary
-                            : colors.onBackground,
-                      }}
-                    >
-                      {item.label}
-                    </BibleText>
-                  </TouchableOpacity>
-                  {index === 0 && (
-                    <BibleDivider vertical height="60%" color={dividerColor} />
-                  )}
-                </React.Fragment>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
-            >
-              Números dos Versículos
-            </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              {[
-                { label: "Ocultar", value: false },
-                { label: "Exibir", value: true },
-              ].map((item, index) => (
-                <React.Fragment key={item.label}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      selectionHaptic();
-                      setShouldShowVerseNumbers(item.value);
-                    }}
-                    style={[
-                      styles.segmentBtn,
-                      shouldShowVerseNumbers === item.value && {
-                        backgroundColor: colors.primary,
-                      },
-                    ]}
-                  >
-                    <BibleText
-                      style={{
-                        fontSize: ms(DESIGN.fontSize.md),
-                        fontWeight: "700",
-                        color:
-                          shouldShowVerseNumbers === item.value
-                            ? colors.onPrimary
-                            : colors.onBackground,
-                      }}
-                    >
-                      {item.label}
-                    </BibleText>
-                  </TouchableOpacity>
-                  {index === 0 && (
-                    <BibleDivider vertical height="60%" color={dividerColor} />
-                  )}
-                </React.Fragment>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
-            >
-              Modo de leitura
-            </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              {[
-                { label: "Normal", value: false },
-                { label: "Sem distração", value: true },
-              ].map((item, index) => (
-                <React.Fragment key={item.label}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      selectionHaptic();
-                      setIsFocusMode(item.value);
-                    }}
-                    style={[
-                      styles.segmentBtn,
-                      isFocusMode === item.value && {
-                        backgroundColor: colors.primary,
-                      },
-                    ]}
-                    testID={`focus-mode-${item.value ? "on" : "off"}`}
-                  >
-                    <BibleText
-                      style={{
-                        fontSize: ms(DESIGN.fontSize.md),
-                        fontWeight: "700",
-                        color:
-                          isFocusMode === item.value
-                            ? colors.onPrimary
-                            : colors.onBackground,
-                      }}
-                    >
-                      {item.label}
-                    </BibleText>
-                  </TouchableOpacity>
-                  {index === 0 && (
-                    <BibleDivider vertical height="60%" color={dividerColor} />
-                  )}
-                </React.Fragment>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <BibleText
-              style={[styles.sectionTitle, { color: colors.textMuted }]}
-            >
-              Desenhos
-            </BibleText>
-            <View
-              style={[
-                styles.unifiedRow,
-                { backgroundColor: colors.surfaceHighlight },
-              ]}
-            >
-              {[
-                { label: "Ocultar", value: false },
-                { label: "Exibir", value: true },
-              ].map((item, index) => (
-                <React.Fragment key={item.label}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      selectionHaptic();
-                      setShowDrawings(item.value);
-                    }}
-                    style={[
-                      styles.segmentBtn,
-                      showDrawings === item.value && {
-                        backgroundColor: colors.primary,
-                      },
-                    ]}
-                  >
-                    <BibleText
-                      style={{
-                        fontSize: ms(DESIGN.fontSize.md),
-                        fontWeight: "700",
-                        color:
-                          showDrawings === item.value
-                            ? colors.onPrimary
-                            : colors.onBackground,
-                      }}
-                    >
-                      {item.label}
-                    </BibleText>
-                  </TouchableOpacity>
-                  {index === 0 && (
-                    <BibleDivider vertical height="60%" color={dividerColor} />
-                  )}
-                </React.Fragment>
-              ))}
-            </View>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>

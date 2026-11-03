@@ -83,6 +83,7 @@ export const PlanReadingFinishCard = React.memo(({ onMessage }: Props) => {
           name={isChapterDone ? "check-circle" : "book-open"}
           color={colors.primary}
           size={fs(DESIGN.icon.lg)}
+          containerSize={DESIGN.icon.lg * fontSizeMultiplier}
         />
         <View style={{ flex: 1, gap: ms(DESIGN.spacing.xs) }}>
           <BibleText
@@ -194,6 +195,7 @@ export const PlanReadingFinishCard = React.memo(({ onMessage }: Props) => {
           name="chevron-right"
           color={colors.primary}
           size={fs(DESIGN.icon.md)}
+          containerSize={DESIGN.icon.md * fontSizeMultiplier}
         />
       </View>
     </TouchableOpacity>

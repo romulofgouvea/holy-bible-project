@@ -190,7 +190,9 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
           readerColors.onBackground || editorColors.onBackground,
           readerFontFamily === "Poppins_400Regular"
             ? "'Poppins_400Regular', sans-serif"
-            : readerFontFamily,
+            : readerFontFamily === "Lora_400Regular"
+              ? "Georgia, serif"
+              : readerFontFamily,
         ],
       });
     }, [readerColors, editorColors, readerFontFamily]);

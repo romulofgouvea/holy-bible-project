@@ -97,8 +97,9 @@ export type ActiveBiblePlan = {
 };
 
 // Reader Settings Domain Models
-export type ReaderTheme = "light" | "dark" | "sepia";
-export type ReaderFont = "poppins" | "monospace";
+export type ReaderTheme = "light" | "dark" | "sepia" | "black";
+export type ReaderFont = "poppins" | "lora" | "monospace";
+export type LineSpacing = "sm" | "md" | "lg";
 export type TextAlign = "auto" | "left" | "right" | "center" | "justify";
 
 // Bible Title Models

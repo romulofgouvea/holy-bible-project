@@ -44,7 +44,7 @@ const ThemeContext = createContext<ThemeContextType | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorTheme, setColorThemeState] = useState<ColorThemeKey>("teal");
-  const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [hapticsEnabled, setHapticsEnabled] = useState(false);
 
   const loadThemeSettings = useCallback(async () => {
     try {

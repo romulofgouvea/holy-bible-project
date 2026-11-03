@@ -44,6 +44,7 @@ export const StudyDrawingCapture = ({ selection, onDone }: Props) => {
     textAlign,
     readerColors,
     shouldShowVerseNumbers,
+    lineSpacing,
   } = useReaderSettings();
   const { drawings } = useDrawings();
   const captureViewRef = useRef<ViewHandle>(null);
@@ -154,7 +155,7 @@ export const StudyDrawingCapture = ({ selection, onDone }: Props) => {
                   lineHeight: ms(
                     DESIGN.fontSize.xxl *
                       fontSizeMultiplier *
-                      DESIGN.lineHeight.md,
+                      DESIGN.lineHeight[lineSpacing],
                   ),
                   color: readerColors.onBackground,
                   textAlign,

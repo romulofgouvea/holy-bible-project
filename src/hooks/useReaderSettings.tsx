@@ -7,6 +7,10 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { Lora_400Regular } from "@expo-google-fonts/lora";
+import * as Brightness from "expo-brightness";
+import { useFonts } from "expo-font";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { DeviceEventEmitter, Platform } from "react-native";
 import {
   COLOR_THEMES,
@@ -18,7 +22,9 @@ import { STORAGE_KEYS } from "../constants/storage";
 import { BACKUP_RESTORED_EVENT } from "../utils/backup";
 import { useTheme } from "./useTheme";
 
-import { ReaderTheme, ReaderFont, TextAlign } from "../models";
+import { LineSpacing, ReaderTheme, ReaderFont, TextAlign } from "../models";
+
+const KEEP_AWAKE_TAG = "reader-settings";
 
 export type ReaderSettingsContextType = {
   fontSizeMultiplier: number;
@@ -39,6 +45,12 @@ export type ReaderSettingsContextType = {
   setIsSpellcheckEnabled: (val: boolean) => void;
   isFocusMode: boolean;
   setIsFocusMode: (val: boolean) => void;
+  lineSpacing: LineSpacing;
+  setLineSpacing: (val: LineSpacing) => void;
+  readerBrightness: number | null;
+  setReaderBrightness: (val: number | null) => void;
+  isKeepAwake: boolean;
+  setIsKeepAwake: (val: boolean) => void;
 };
 
 const ReaderSettingsContext = createContext<ReaderSettingsContextType>(
@@ -61,6 +73,12 @@ export const ReaderSettingsProvider = ({
     useState(true);
   const [isSpellcheckEnabled, setIsSpellcheckEnabledState] = useState(true);
   const [isFocusMode, setIsFocusModeState] = useState(false);
+  const [lineSpacing, setLineSpacingState] = useState<LineSpacing>("md");
+  const [readerBrightness, setReaderBrightnessState] = useState<number | null>(
+    null,
+  );
+  const [isKeepAwake, setIsKeepAwakeState] = useState(false);
+  const [areFontsLoaded, fontsError] = useFonts({ Lora_400Regular });
 
   const loadReaderSettings = useCallback(async () => {
     try {
@@ -73,6 +91,9 @@ export const ReaderSettingsProvider = ({
         savedShowVerseNumbers,
         savedSpellcheck,
         savedFocusMode,
+        savedLineSpacing,
+        savedBrightness,
+        savedKeepAwake,
       ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.FONT_SIZE),
         AsyncStorage.getItem(STORAGE_KEYS.TEXT_ALIGN),
@@ -82,6 +103,9 @@ export const ReaderSettingsProvider = ({
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_VERSE_NUMBERS),
         AsyncStorage.getItem(STORAGE_KEYS.SPELLCHECK_ENABLED),
         AsyncStorage.getItem(STORAGE_KEYS.FOCUS_MODE),
+        AsyncStorage.getItem(STORAGE_KEYS.LINE_SPACING),
+        AsyncStorage.getItem(STORAGE_KEYS.READER_BRIGHTNESS),
+        AsyncStorage.getItem(STORAGE_KEYS.KEEP_SCREEN_AWAKE),
       ]);
 
       if (savedFontSize !== null)
@@ -97,6 +121,14 @@ export const ReaderSettingsProvider = ({
         setIsSpellcheckEnabledState(savedSpellcheck === "true");
       if (savedFocusMode !== null)
         setIsFocusModeState(savedFocusMode === "true");
+      if (savedLineSpacing !== null)
+        setLineSpacingState(savedLineSpacing as LineSpacing);
+      setReaderBrightnessState(
+        savedBrightness !== null && savedBrightness !== ""
+          ? Number(savedBrightness)
+          : null,
+      );
+      setIsKeepAwakeState(savedKeepAwake === "true");
     } catch (e) {}
     setIsLoaded(true);
   }, []);
@@ -159,6 +191,44 @@ export const ReaderSettingsProvider = ({
     } catch (e) {}
   }, []);
 
+  const setLineSpacing = useCallback(async (val: LineSpacing) => {
+    setLineSpacingState(val);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.LINE_SPACING, val);
+    } catch (e) {}
+  }, []);
+
+  const setReaderBrightness = useCallback(async (val: number | null) => {
+    setReaderBrightnessState(val);
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.READER_BRIGHTNESS,
+        val === null ? "" : String(val),
+      );
+    } catch (e) {}
+  }, []);
+
+  const setIsKeepAwake = useCallback(async (val: boolean) => {
+    setIsKeepAwakeState(val);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.KEEP_SCREEN_AWAKE, String(val));
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (isKeepAwake) activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    else deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+  }, [isKeepAwake, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (readerBrightness !== null)
+      Brightness.setBrightnessAsync(readerBrightness).catch(() => {});
+    else if (Platform.OS === "android")
+      Brightness.restoreSystemBrightnessAsync().catch(() => {});
+  }, [readerBrightness, isLoaded]);
+
   const setIsSpellcheckEnabled = useCallback(async (val: boolean) => {
     setIsSpellcheckEnabledState(val);
     try {
@@ -172,16 +242,20 @@ export const ReaderSettingsProvider = ({
     const readerColors =
       readerTheme === "sepia"
         ? sepiaColors
-        : readerTheme === "dark"
-          ? activePalette.dark
-          : activePalette.light;
+        : readerTheme === "black"
+          ? { ...activePalette.dark, background: "#000000", surface: "#0B0B0B" }
+          : readerTheme === "dark"
+            ? activePalette.dark
+            : activePalette.light;
 
     const readerFontFamily =
       readerFont === "monospace"
         ? Platform.OS === "ios"
           ? "Courier"
           : "monospace"
-        : "Poppins_400Regular";
+        : readerFont === "lora"
+          ? "Lora_400Regular"
+          : "Poppins_400Regular";
 
     return {
       fontSizeMultiplier,
@@ -202,6 +276,12 @@ export const ReaderSettingsProvider = ({
       setIsSpellcheckEnabled,
       isFocusMode,
       setIsFocusMode,
+      lineSpacing,
+      setLineSpacing,
+      readerBrightness,
+      setReaderBrightness,
+      isKeepAwake,
+      setIsKeepAwake,
     };
   }, [
     colorTheme,
@@ -215,6 +295,12 @@ export const ReaderSettingsProvider = ({
     setIsSpellcheckEnabled,
     isFocusMode,
     setIsFocusMode,
+    lineSpacing,
+    setLineSpacing,
+    readerBrightness,
+    setReaderBrightness,
+    isKeepAwake,
+    setIsKeepAwake,
     setFontSizeMultiplier,
     setTextAlign,
     setReaderTheme,
@@ -223,7 +309,7 @@ export const ReaderSettingsProvider = ({
     setShouldShowVerseNumbers,
   ]);
 
-  if (!isLoaded) return null;
+  if (!isLoaded || !(areFontsLoaded || fontsError)) return null;
 
   return (
     <ReaderSettingsContext.Provider value={value}>

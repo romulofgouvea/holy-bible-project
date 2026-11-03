@@ -150,6 +150,7 @@ const ParagraphRow = React.memo(
     onVersePress,
     onVerseLongPress,
   }: any) => {
+    const { lineSpacing } = useReaderSettings();
     return (
       <View style={styles.paragraphRow}>
         <BibleText
@@ -159,7 +160,9 @@ const ParagraphRow = React.memo(
             {
               fontSize: ms(DESIGN.fontSize.xxl * fontSizeMultiplier),
               lineHeight: ms(
-                DESIGN.fontSize.xxl * fontSizeMultiplier * DESIGN.lineHeight.md,
+                DESIGN.fontSize.xxl *
+                  fontSizeMultiplier *
+                  DESIGN.lineHeight[lineSpacing],
               ),
               color: readerColors.onBackground,
               textAlign: textAlign as any,
@@ -251,6 +254,7 @@ const VerseRow = React.memo(
     bookAbbrev,
     bookName,
   }: any) => {
+    const { lineSpacing } = useReaderSettings();
     const textGap = shouldShowVerseNumbers ? "  " : "";
     const blinkAnim = useRef(new Animated.Value(0)).current;
 
@@ -414,7 +418,7 @@ const VerseRow = React.memo(
                   lineHeight: ms(
                     DESIGN.fontSize.xxl *
                       fontSizeMultiplier *
-                      DESIGN.lineHeight.md,
+                      DESIGN.lineHeight[lineSpacing],
                   ),
                   color: readerColors.onBackground,
                   textAlign: textAlign as any,

@@ -47,8 +47,8 @@ Cada passo tem o resultado esperado. A coluna **Auto** indica o que `e2e/run.sh`
 2. Rolar. O cabeçalho continua visível, aparece o botão quadrado de subir.
 
 ### 2. Aparência e modo sem distração (`section_appearance`) — Auto
-1. Tocar em **T** (876, 187). Modal "Aparência (Aa)" com a seção **Modo de leitura** e **Desenhos** (não "Rabiscos").
-2. Escolher **Sem distração** e fechar. A barra de localização some, assim como os botões flutuantes.
+1. Tocar em **T** (876, 187). Modal "Aparência (Aa)" com prévia ao vivo e as seções Texto, Cores, Exibição (**Modo sem distração**, **Desenhos**) e Tela (não "Rabiscos").
+2. Ligar **Modo sem distração** (manual) e fechar. Os botões flutuantes de anterior e próximo só aparecem ao chegar ao fim do capítulo, e a barra de localização (versão, livro e capítulo) continua visível.
 3. Voltar para **Normal**.
 
 ### 3. Seletor (`section_picker`) — Auto (captura)
@@ -108,7 +108,7 @@ Ver o fim deste arquivo, seção **Registro**, atualizada a cada execução.
 | Seção | Resultado |
 |---|---|
 | 1 Bíblia | ok: barra de progresso no topo, botões quadrados, card final do plano |
-| 2 Aparência | ok: "Modo de leitura" (Normal / Sem distração); ligar esconde a barra de localização e os botões |
+| 2 Aparência | modal reescrito; modo sem distração mantém a barra de localização e esconde só os botões flutuantes (verificar manualmente) |
 | 3 Seletor | ok: pontinho nos capítulos com desenho/anotação (Judas 1) |
 | 5 Estudos | ok: ↓ ↑ × nos blocos, mover salva e persiste ao reabrir; desenhar pelo estudo (versículos 1 e 4, traço no 2) insere o bloco 1-4; imagem em arquivo continua ao reabrir |
 | 6 Anotações | ok: busca (`JUMENTO`), seleção múltipla ("1 selecionada"), título sugerido "Êxodo 23:5", aviso "Ir para o estudo" rolando até o conteúdo |
