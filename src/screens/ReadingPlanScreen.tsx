@@ -1240,7 +1240,6 @@ export default function ReadingPlanScreen() {
       completedAtMs,
     } = selectedStats;
     const startDateText = new Date(startedAt).toLocaleDateString("pt-BR");
-    const streak = getReadingStreak(getCompletionTimes(selectedPlan));
     const showGoToToday = !isPaused && todayIndex >= 0;
     const showGoToLast =
       !isPaused && lastCompletedIndex > 0 && lastCompletedIndex !== todayIndex;
@@ -1287,32 +1286,6 @@ export default function ReadingPlanScreen() {
             >
               {selectedPlan.title}
             </BibleText>
-
-            {streak >= 2 && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: ms(DESIGN.spacing.xs),
-                  marginTop: ms(DESIGN.spacing.xs),
-                }}
-              >
-                <BibleIcon
-                  name="zap"
-                  size={ms(DESIGN.fontSize.md)}
-                  color={colors.primary}
-                />
-                <BibleText
-                  style={{
-                    fontSize: ms(DESIGN.fontSize.sm),
-                    fontWeight: "700",
-                    color: colors.primary,
-                  }}
-                >
-                  {streak} dias seguidos
-                </BibleText>
-              </View>
-            )}
 
             <View style={{ marginTop: ms(16), marginBottom: ms(16) }}>
               <View

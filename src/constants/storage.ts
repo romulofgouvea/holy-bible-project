@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   DRAWINGS: "bible_drawings",
   SHOW_DRAWINGS: "bible_show_drawings",
   DRAWING_COLOR: "bible_drawing_color",
+  DRAWING_RECENT_COLORS: "bible_drawing_recent_colors",
   STUDIES: "bible_studies",
   AUTO_BACKUP: "bible_auto_backup",
   AUTO_BACKUP_FILE_URI: "bible_auto_backup_file_uri",

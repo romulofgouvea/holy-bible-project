@@ -11,6 +11,7 @@ import {
 import { VERSE_HIGHLIGHTS as HIGHLIGHT_COLORS } from "../../constants/colors";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../hooks/useTheme";
+import { ToastAction } from "../../hooks/useToast";
 import { SelectedVerse } from "../../models";
 import { formatVerseRanges } from "../../utils/verseRange";
 import { BibleIcon } from "../BibleIcon";
@@ -24,7 +25,11 @@ type VerseActionSheetProps = {
   onClose: () => void;
   onBulkHighlight: (verses: SelectedVerse[], color: string | null) => void;
   onDraw?: (verses: SelectedVerse[]) => void;
-  onShowToast?: (msg: string, type?: "success" | "info" | "warning") => void;
+  onShowToast?: (
+    msg: string,
+    type?: "success" | "info" | "warning",
+    action?: ToastAction,
+  ) => void;
 };
 
 export function BibleVerseActionSheet(props: VerseActionSheetProps) {

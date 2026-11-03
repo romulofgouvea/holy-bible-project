@@ -10,7 +10,7 @@ import { useBiblePlan } from "./useBiblePlan";
 const NOTIFICATION_IDENTIFIER = "reading-plan-daily-reminder";
 const ANDROID_CHANNEL_ID = "reading-plan";
 const DEFAULT_TIME = "08:00";
-const SCHEDULE_DAYS = 14;
+const SCHEDULE_DAYS = 60;
 const MIN_HABIT_SAMPLES = 5;
 const MAX_HABIT_SAMPLES = 20;
 const TOPIC_SUBSCRIPTION_MODULE = "ExpoTopicSubscriptionModule";

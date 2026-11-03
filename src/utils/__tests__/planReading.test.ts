@@ -1,6 +1,7 @@
 import { BiblePlanTemplate } from "../../models/BiblePlanModels";
 import {
   findNextPlanReading,
+  findResumeReading,
   getDayChapters,
   getReadingStreak,
 } from "../planReading";
@@ -121,5 +122,27 @@ describe("getReadingStreak", () => {
   it("is zero after a missed day", () => {
     expect(getReadingStreak([at(7), at(8)], now)).toBe(0);
     expect(getReadingStreak([], now)).toBe(0);
+  });
+});
+
+describe("findResumeReading", () => {
+  it("returns the first unread chapter of the first incomplete day", () => {
+    const resume = findResumeReading(
+      template,
+      (m, d) => m === 1 && d === 1,
+      () => false,
+    );
+    expect(resume?.monthNumber).toBe(1);
+    expect(resume?.day.day).toBe(2);
+  });
+
+  it("returns null when every day is done", () => {
+    expect(
+      findResumeReading(
+        template,
+        () => true,
+        () => true,
+      ),
+    ).toBeNull();
   });
 });

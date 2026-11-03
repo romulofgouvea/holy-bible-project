@@ -82,6 +82,7 @@ type VerseReaderProps = {
   scrollEventThrottle?: number;
   splitMode?: boolean;
   footerExtra?: React.ReactNode;
+  headerExtra?: React.ReactNode;
 };
 
 const renderVerseContent = (
@@ -394,6 +395,16 @@ const VerseRow = React.memo(
               isSelected && { borderLeftColor: primaryColor },
             ]}
           >
+            {!splitMode && (
+              <VerseDrawingLayer
+                placement="behind"
+                version={version}
+                bookAbbrev={bookAbbrev}
+                bookName={bookName}
+                chapter={item.chapter}
+                verse={item.verse}
+              />
+            )}
             <BibleText
               variant="reading"
               style={[
@@ -493,6 +504,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     scrollEventThrottle,
     splitMode,
     footerExtra,
+    headerExtra,
   } = props;
   const { ms, DESIGN } = useResponsive();
   const { colors } = useTheme();
@@ -746,6 +758,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
                 >
                   {item.title}
                 </BibleText>
+                {headerExtra}
               </View>
             );
           }

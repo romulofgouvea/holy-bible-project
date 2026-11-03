@@ -30,7 +30,8 @@ type EditorCommand = {
     | "toggleTaskList"
     | "blur"
     | "applyTheme"
-    | "setSpellcheck";
+    | "setSpellcheck"
+    | "scrollToLastBlock";
   args: (string | number | null)[];
 };
 
@@ -43,6 +44,8 @@ type Props = {
   initialHtml: string;
   onChange: (html: string) => void;
   onOpenVersePicker: () => void;
+  onOpenDrawing?: () => void;
+  shouldScrollToEnd?: boolean;
   showToolbar?: boolean;
   readonly?: boolean;
 };
@@ -53,6 +56,8 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
       initialHtml,
       onChange,
       onOpenVersePicker,
+      onOpenDrawing,
+      shouldScrollToEnd = false,
       showToolbar = true,
       readonly = false,
     },
@@ -304,6 +309,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
+        .bible-verse img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
         .bible-verse p {
           margin: 0;
           color: ${editorColors.onSurface};
@@ -731,6 +737,14 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
           insertHtml: function(html) { window.insertHtml(String(html)); },
           toggleTaskList: function() { window.toggleTaskList(); },
           blur: function() { document.getElementById('editor').blur(); },
+          scrollToLastBlock: function() {
+            setTimeout(function() {
+              var blocks = document.querySelectorAll('.bible-verse');
+              var target = blocks[blocks.length - 1];
+              if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+              else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }, 400);
+          },
           setSpellcheck: function(isEnabled) {
             var editorEl = document.getElementById('editor');
             if (!editorEl) return;
@@ -827,6 +841,19 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
                 >
                   <BibleIcon name="book-open" color={colors.onPrimary} />
                 </TouchableOpacity>
+                {onOpenDrawing && (
+                  <>
+                    <BibleDivider vertical height={"60%"} />
+                    <TouchableOpacity
+                      style={styles.groupBtn}
+                      onPress={onOpenDrawing}
+                      activeOpacity={0.7}
+                      testID="study-drawing-button"
+                    >
+                      <BibleIcon name="pen-tool" color={colors.onSurface} />
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
 
               <BibleDivider
@@ -1332,6 +1359,11 @@ export const RichTextEditor = React.forwardRef<RichTextEditorRef, Props>(
             source={{ html: editorHtml }}
             originWhitelist={["about:blank"]}
             onMessage={onMessage}
+            onLoadEnd={() => {
+              if (shouldScrollToEnd) {
+                injectToEditor({ name: "scrollToLastBlock", args: [] });
+              }
+            }}
             style={{ flex: 1, backgroundColor: colors.surface }}
             hideKeyboardAccessoryView={true}
             keyboardDisplayRequiresUserAction={false}

@@ -8,9 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { LIMITS } from "../../constants/limits";
+import { ROUTES } from "../../constants/routes";
 import { useResponsive } from "../../hooks/useResponsive";
-import { useStudies } from "../../hooks/useStudies";
+import { canStoreStudyData, useStudies } from "../../hooks/useStudies";
+import { ToastAction } from "../../hooks/useToast";
 import { useTheme } from "../../hooks/useTheme";
 import { SelectedVerse } from "../../models";
 import { formatVerseRanges } from "../../utils/verseRange";
@@ -23,16 +26,36 @@ type BibleAddToStudyModalProps = {
   visible: boolean;
   onClose: () => void;
   selectedVerses: SelectedVerse[];
-  onShowToast?: (msg: string, type?: "success" | "info" | "warning") => void;
+  customHtml?: string;
+  onShowToast?: (
+    msg: string,
+    type?: "success" | "info" | "warning",
+    action?: ToastAction,
+  ) => void;
 };
+
+const STORAGE_FULL_MESSAGE =
+  "Sem espaço para este conteúdo. Remova imagens de estudos antigos.";
 
 export function BibleAddToStudyModal({
   visible,
   onClose,
   selectedVerses,
+  customHtml,
   onShowToast,
 }: BibleAddToStudyModalProps) {
-  const { studies, updateStudy, createStudy } = useStudies();
+  const router = useRouter();
+  const { studies, appendToStudy, createStudy, reloadFromStorage } =
+    useStudies();
+
+  const goToStudyAction = (studyId: string): ToastAction => ({
+    label: "Ir para o estudo",
+    onPress: () =>
+      router.navigate({
+        pathname: ROUTES.STUDY_EDITOR(studyId),
+        params: { scrollToEnd: "1" },
+      } as any),
+  });
   const { ms, DESIGN } = useResponsive();
   const { colors } = useTheme();
 
@@ -104,10 +127,12 @@ export function BibleAddToStudyModal({
     if (visible) {
       setIsCreating(false);
       setNewTitle("");
+      reloadFromStorage();
     }
   }, [visible]);
 
   const buildVersesHtml = () => {
+    if (customHtml) return customHtml;
     if (selectedVerses.length === 0) return "";
     const sorted = [...selectedVerses].sort((a, b) =>
       a.chapter !== b.chapter ? a.chapter - b.chapter : a.verse - b.verse,
@@ -151,18 +176,38 @@ export function BibleAddToStudyModal({
     return `<blockquote class="bible-verse" contenteditable="false"><div class="remove-verse-btn" contenteditable="false">×</div><div class="verse-title">${ref}</div>${versesBody}</blockquote><p><br></p>`;
   };
 
-  const handleAddToStudy = (studyId: string, currentContent: string) => {
+  const handleAddToStudy = async (studyId: string) => {
     const html = buildVersesHtml();
-    updateStudy(studyId, currentContent + html);
-    onShowToast?.("Versículos adicionados ao estudo", "success");
+    const isSaved = await appendToStudy(studyId, html);
+    if (!isSaved) {
+      onShowToast?.(STORAGE_FULL_MESSAGE, "warning");
+      onClose();
+      return;
+    }
+    onShowToast?.(
+      customHtml ? "Adicionado ao estudo" : "Versículos adicionados ao estudo",
+      "success",
+      goToStudyAction(studyId),
+    );
     onClose();
   };
 
-  const handleCreateAndAdd = () => {
+  const handleCreateAndAdd = async () => {
     if (!newTitle.trim()) return;
     const html = buildVersesHtml();
-    createStudy(newTitle.trim(), html);
-    onShowToast?.("Estudo criado com os versículos", "success");
+    if (!(await canStoreStudyData(html.length))) {
+      onShowToast?.(STORAGE_FULL_MESSAGE, "warning");
+      onClose();
+      return;
+    }
+    const studyId = createStudy(newTitle.trim(), html);
+    onShowToast?.(
+      customHtml
+        ? "Estudo criado com o conteúdo"
+        : "Estudo criado com os versículos",
+      "success",
+      goToStudyAction(studyId),
+    );
     setIsCreating(false);
     setNewTitle("");
     onClose();
@@ -300,7 +345,7 @@ export function BibleAddToStudyModal({
                       backgroundColor: colors.surface,
                     },
                   ]}
-                  onPress={() => handleAddToStudy(item.id, item.content)}
+                  onPress={() => handleAddToStudy(item.id)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.studyItemContent}>

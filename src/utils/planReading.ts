@@ -94,3 +94,20 @@ export const getCompletionTimes = (plan: {
   Object.values(plan.completedDays).flatMap((d) =>
     d.isCompleted && d.completedAt ? [d.completedAt] : [],
   );
+
+export const findResumeReading = (
+  template: BiblePlanTemplate,
+  isDayDone: (monthNumber: number, day: number) => boolean,
+  isRead: IsChapterRead,
+): Omit<NextPlanReading, "isNewDay"> | null => {
+  for (const month of template.months) {
+    for (const day of month.days) {
+      if (isDayDone(month.monthNumber, day.day)) continue;
+      const chapter = getDayChapters(day).find(
+        (c) => !isRead(month.monthNumber, day.day, c.abbrev, c.chapter),
+      );
+      if (chapter) return { monthNumber: month.monthNumber, day, chapter };
+    }
+  }
+  return null;
+};

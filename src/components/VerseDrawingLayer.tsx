@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 import { useDrawings } from "../hooks/useDrawings";
@@ -29,16 +35,35 @@ type Props = {
   bookName: string;
   chapter: number;
   verse: number;
+  placement?: "front" | "behind";
+  forceVisible?: boolean;
+  shouldRegister?: boolean;
 };
 
 export const VerseDrawingLayer = React.memo(
-  ({ version, bookAbbrev, bookName, chapter, verse }: Props) => {
+  ({
+    version,
+    bookAbbrev,
+    bookName,
+    chapter,
+    verse,
+    placement = "front",
+    forceVisible = false,
+    shouldRegister = true,
+  }: Props) => {
     const verseKey = getVerseDrawingKey(version, bookAbbrev, chapter, verse);
     const { drawings, isDrawMode, showDrawings } = useDrawings();
     const viewRef = useRef<ViewHandle>(null);
     const [size, setSize] = useState({ width: 0, height: 0 });
 
-    const strokes = drawings[verseKey]?.strokes;
+    const isBehind = placement === "behind";
+    const strokes = useMemo(
+      () =>
+        drawings[verseKey]?.strokes.filter(
+          (s) => (s.tool === "marker") === isBehind,
+        ),
+      [drawings, verseKey, isBehind],
+    );
     const hasStrokes = !!strokes && strokes.length > 0;
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
@@ -51,15 +76,30 @@ export const VerseDrawingLayer = React.memo(
     }, []);
 
     useEffect(() => {
-      if (!isDrawMode) return;
+      if (!isDrawMode || isBehind || !shouldRegister) return;
       return registerVerseLayer(verseKey, {
         view: viewRef,
         ref: { version, bookAbbrev, bookName, chapter, verse },
       });
-    }, [isDrawMode, verseKey, version, bookAbbrev, bookName, chapter, verse]);
+    }, [
+      isDrawMode,
+      isBehind,
+      shouldRegister,
+      verseKey,
+      version,
+      bookAbbrev,
+      bookName,
+      chapter,
+      verse,
+    ]);
 
-    const isVisible = showDrawings || isDrawMode;
-    if (!isDrawMode && (!isVisible || !hasStrokes)) return null;
+    const isVisible = showDrawings || isDrawMode || forceVisible;
+    if (
+      isBehind
+        ? !isVisible || !hasStrokes
+        : !isDrawMode && (!isVisible || !hasStrokes)
+    )
+      return null;
 
     return (
       <View

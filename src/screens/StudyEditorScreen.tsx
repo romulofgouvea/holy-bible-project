@@ -1,6 +1,18 @@
-import { useLocalSearchParams, usePathname } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  useFocusEffect,
+  useLocalSearchParams,
+  usePathname,
+  useRouter,
+} from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -26,10 +38,20 @@ import {
 import { LIMITS } from "../constants/limits";
 import { STORAGE_KEYS } from "../constants/storage";
 import { getBibleData } from "../data/bible-version";
+import { ROUTES } from "../constants/routes";
+import { useBible } from "../hooks/useBible";
 import { useBibleModals } from "../hooks/useBibleModals";
+import {
+  requestStudyDrawing,
+  takeStudyDrawingResult,
+} from "../utils/studyDrawingBridge";
 import { useResponsive } from "../hooks/useResponsive";
-import { useStudies } from "../hooks/useStudies";
+import { canStoreStudyData, useStudies } from "../hooks/useStudies";
 import { useTheme } from "../hooks/useTheme";
+
+const DRAWING_INSERT_DELAY = 400;
+const STORAGE_FULL_MESSAGE =
+  "Sem espaço para este desenho. Remova imagens de estudos antigos.";
 
 const noOutline = Platform.select({
   web: { outline: "none", outlineWidth: 0 } as any,
@@ -37,9 +59,10 @@ const noOutline = Platform.select({
 });
 
 export default function StudyEditorScreen() {
-  const { id, readonly } = useLocalSearchParams<{
+  const { id, readonly, scrollToEnd } = useLocalSearchParams<{
     id: string;
     readonly?: string;
+    scrollToEnd?: string;
   }>();
   const isReadonly = readonly === "true";
   const pathname = usePathname();
@@ -67,20 +90,41 @@ export default function StudyEditorScreen() {
   const saveTimeout = useRef<any>(null);
   const hydrated = useRef(false);
   const initialContentRef = useRef<string>("");
+  const lastSyncedRef = useRef<string>("");
+  const htmlContentRef = useRef<string>("");
+  const [editorKey, setEditorKey] = useState(0);
 
   useEffect(() => {
     if (study && !hydrated.current) {
       setTitle(study.title);
       setHtmlContent(study.content);
       initialContentRef.current = study.content;
+      lastSyncedRef.current = study.content;
       hydrated.current = true;
     }
   }, [study]);
 
   useEffect(() => {
+    htmlContentRef.current = htmlContent;
+  }, [htmlContent]);
+
+  const storedContent = study?.content;
+
+  useEffect(() => {
+    if (!hydrated.current || storedContent === undefined) return;
+    const hasLocalEdits = htmlContentRef.current !== lastSyncedRef.current;
+    if (storedContent === lastSyncedRef.current || hasLocalEdits) return;
+    lastSyncedRef.current = storedContent;
+    initialContentRef.current = storedContent;
+    setHtmlContent(storedContent);
+    setEditorKey((key) => key + 1);
+  }, [storedContent]);
+
+  useEffect(() => {
     if (!hydrated.current) return;
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(() => {
+      lastSyncedRef.current = htmlContent;
       updateStudy(id, htmlContent, title);
     }, 1000);
     return () => {
@@ -111,7 +155,12 @@ export default function StudyEditorScreen() {
 
   const { openModal } = useBibleModals();
 
-  const openVersePicker = async () => {
+  const router = useRouter();
+  const { navigateTo, version: currentVersion } = useBible();
+
+  const openVersePicker = async (
+    onSelected: (selection: any) => void = onInsertVerseHtml,
+  ) => {
     Keyboard.dismiss();
     editorRef.current?.blur();
     let currentPos = studyPosition;
@@ -151,10 +200,48 @@ export default function StudyEditorScreen() {
           );
         } catch (e) {}
 
-        onInsertVerseHtml(selection);
+        onSelected(selection);
       },
     });
   };
+
+  const onStartDrawing = (selection: any) => {
+    const { verses, book, chapter, version, verseObjects } = selection;
+    if (!book || !verses || verses.length === 0) return;
+    requestStudyDrawing(
+      id,
+      {
+        version,
+        bookAbbrev: book.abbrev,
+        bookName: book.name || book.abbrev,
+        chapter,
+        verses: verseObjects,
+      },
+      currentVersion,
+    );
+    navigateTo({
+      version,
+      book: book.abbrev,
+      chapter,
+      verse: verseObjects[0].verse,
+    });
+    router.navigate(ROUTES.BIBLE as any);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const html = takeStudyDrawingResult(id);
+      if (!html) return;
+      const timer = setTimeout(async () => {
+        if (await canStoreStudyData(html.length)) {
+          editorRef.current?.insertVerseHtml(html);
+        } else {
+          Alert.alert("Sem espaço", STORAGE_FULL_MESSAGE);
+        }
+      }, DRAWING_INSERT_DELAY);
+      return () => clearTimeout(timer);
+    }, [id]),
+  );
 
   const onInsertVerseHtml = (selection: any) => {
     const { verses, book, chapter, version, verseObjects } = selection;
@@ -269,10 +356,13 @@ export default function StudyEditorScreen() {
         keyboardVerticalOffset={0}
       >
         <RichTextEditor
+          key={editorKey}
           ref={editorRef}
           initialHtml={initialContentRef.current}
           onChange={setHtmlContent}
-          onOpenVersePicker={openVersePicker}
+          onOpenVersePicker={() => openVersePicker()}
+          onOpenDrawing={() => openVersePicker(onStartDrawing)}
+          shouldScrollToEnd={scrollToEnd === "1"}
           showToolbar={showToolbar}
           readonly={isReadonly}
         />

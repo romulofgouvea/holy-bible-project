@@ -18,6 +18,7 @@ type BibleNumberModalProps = {
   iconName: keyof typeof Feather.glyphMap;
   onSelect: (item: number) => void;
   currentItem?: number;
+  markedItems?: Set<number>;
   footerText?: string;
 };
 
@@ -30,6 +31,7 @@ export function BibleNumberModal({
   iconName,
   onSelect,
   currentItem,
+  markedItems,
   footerText,
 }: BibleNumberModalProps) {
   const { ms, height, width, DESIGN } = useResponsive();
@@ -168,6 +170,7 @@ export function BibleNumberModal({
                   title={item}
                   exactWidth={itemWidth}
                   isSelected={isSelected}
+                  hasMark={markedItems?.has(item)}
                   onPress={() => onSelect(item)}
                 />
               </View>

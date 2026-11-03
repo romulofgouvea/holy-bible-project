@@ -482,7 +482,7 @@ export function ReaderSettingsModal({
             <BibleText
               style={[styles.sectionTitle, { color: colors.textMuted }]}
             >
-              Rabiscos
+              Desenhos
             </BibleText>
             <View
               style={[

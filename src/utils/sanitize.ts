@@ -2,7 +2,7 @@ const BLOCKED_TAGS =
   /<\s*(script|iframe|object|embed|style|link|meta|base|form|frame|frameset|applet)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>|<\s*(script|iframe|object|embed|style|link|meta|base|form|frame|frameset|applet)\b[^>]*\/?>/gi;
 const EVENT_ATTRIBUTES = /\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 const SCRIPT_URL_ATTRIBUTES =
-  /\s+(href|src|xlink:href|action|formaction|srcdoc)\s*=\s*("\s*(?:javascript|vbscript|data):[^"]*"|'\s*(?:javascript|vbscript|data):[^']*'|(?:javascript|vbscript|data):[^\s>]*)/gi;
+  /\s+(href|src|xlink:href|action|formaction|srcdoc)\s*=\s*("\s*(?:javascript:|vbscript:|data:(?!image\/(?:png|jpe?g|webp);base64,))[^"]*"|'\s*(?:javascript:|vbscript:|data:(?!image\/(?:png|jpe?g|webp);base64,))[^']*'|(?:javascript:|vbscript:|data:(?!image\/(?:png|jpe?g|webp);base64,))[^\s>]*)/gi;
 const VOICE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 export function sanitizeHtml(html: string): string {

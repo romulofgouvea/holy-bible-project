@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { DeviceEventEmitter } from "react-native";
+import { AppState, DeviceEventEmitter } from "react-native";
 import { STORAGE_KEYS } from "../constants/storage";
 import {
   DrawingEntry,
@@ -23,6 +23,8 @@ import { useTheme } from "./useTheme";
 
 export const DRAWING_WIDTHS = [3, 6, 10];
 export const MARKER_WIDTH_FACTOR = 3;
+export const MAX_RECENT_COLORS = 5;
+const PERSIST_DELAY = 400;
 
 type StrokeItem = { ref: VerseReference; stroke: DrawingStroke };
 type UndoGroup = { key: string; id: string }[];
@@ -33,6 +35,7 @@ type DrawingContextType = {
   isErasing: boolean;
   tool: DrawingTool;
   color: string;
+  recentColors: string[];
   widthIndex: number;
   strokeWidth: number;
   showDrawings: boolean;
@@ -61,7 +64,23 @@ type DrawingContextType = {
 
 const DrawingContext = createContext<DrawingContextType | null>(null);
 
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingDrawings: VerseDrawings | null = null;
+
+const flushDrawings = () => {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = null;
+  if (pendingDrawings) writeDrawings(pendingDrawings);
+  pendingDrawings = null;
+};
+
 const persist = (next: VerseDrawings) => {
+  pendingDrawings = next;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(flushDrawings, PERSIST_DELAY);
+};
+
+const writeDrawings = (next: VerseDrawings) => {
   AsyncStorage.setItem(
     STORAGE_KEYS.DRAWINGS,
     JSON.stringify(Object.values(next)),
@@ -84,6 +103,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
   const [storedColor, setStoredColor] = useState<string | null>(null);
   const color = storedColor ?? colors.primary;
+  const [recentColors, setRecentColors] = useState<string[]>([]);
   const [widthIndex, setWidthIndex] = useState(1);
   const [showDrawings, setShowDrawingsState] = useState(true);
   const [undoCount, setUndoCount] = useState(0);
@@ -111,12 +131,21 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
 
   const load = useCallback(async () => {
     try {
-      const [stored, show, savedColor] = await Promise.all([
+      const [stored, show, savedColor, savedRecent] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.DRAWINGS),
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_DRAWINGS),
         AsyncStorage.getItem(STORAGE_KEYS.DRAWING_COLOR),
+        AsyncStorage.getItem(STORAGE_KEYS.DRAWING_RECENT_COLORS),
       ]);
       setStoredColor(savedColor);
+      const recent = savedRecent ? JSON.parse(savedRecent) : [];
+      setRecentColors(
+        Array.isArray(recent)
+          ? recent
+              .filter((c) => typeof c === "string")
+              .slice(0, MAX_RECENT_COLORS)
+          : [],
+      );
       const raw = stored ? JSON.parse(stored) : [];
       const parsed: VerseDrawings = {};
       if (Array.isArray(raw)) {
@@ -144,7 +173,13 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     load();
     const sub = DeviceEventEmitter.addListener(BACKUP_RESTORED_EVENT, load);
-    return () => sub.remove();
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") flushDrawings();
+    });
+    return () => {
+      sub.remove();
+      appStateSub.remove();
+    };
   }, [load]);
 
   const insertStrokes = useCallback(
@@ -169,14 +204,29 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
     [apply],
   );
 
+  const rememberColor = useCallback((value: string) => {
+    setRecentColors((prev) => {
+      const next = [value, ...prev.filter((c) => c !== value)].slice(
+        0,
+        MAX_RECENT_COLORS,
+      );
+      AsyncStorage.setItem(
+        STORAGE_KEYS.DRAWING_RECENT_COLORS,
+        JSON.stringify(next),
+      ).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const addStrokes = useCallback(
     (items: StrokeItem[]) => {
       if (items.length === 0) return;
       redoStackRef.current = [];
       insertStrokes(items);
       syncStacks();
+      rememberColor(items[0].stroke.color);
     },
-    [insertStrokes, syncStacks],
+    [insertStrokes, syncStacks, rememberColor],
   );
 
   const addStroke = useCallback(
@@ -317,6 +367,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       isErasing,
       tool,
       color,
+      recentColors,
       widthIndex,
       strokeWidth,
       showDrawings,
@@ -343,6 +394,7 @@ export function DrawingProvider({ children }: { children: React.ReactNode }) {
       isErasing,
       tool,
       color,
+      recentColors,
       widthIndex,
       strokeWidth,
       showDrawings,

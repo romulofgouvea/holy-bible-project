@@ -7,6 +7,9 @@ import { BibleHeader } from "../components/BibleHeader";
 import { BibleIcon } from "../components/BibleIcon";
 import { BiblePageEmpty } from "../components/BiblePageEmpty";
 import { BibleText } from "../components/BibleText";
+import { BibleToast } from "../components/BibleToast";
+import { StudyDrawingCapture } from "../components/StudyDrawingCapture";
+import { BibleAddToStudyModal } from "../components/modals/BibleAddToStudyModal";
 import { BibleConfirmModal } from "../components/modals/BibleConfirmModal";
 import { BibleNoteModal } from "../components/modals/BibleNoteModal";
 import { DonateModal } from "../components/modals/DonateModal";
@@ -14,13 +17,27 @@ import { VERSE_HIGHLIGHTS } from "../constants/colors";
 import { ROUTES } from "../constants/routes";
 import { getBibleData } from "../data/bible-version";
 import { useBible } from "../hooks/useBible";
+import { useDrawings } from "../hooks/useDrawings";
 import { useNotes } from "../hooks/useNotes";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
+import { useToast } from "../hooks/useToast";
+import { StudyDrawingSelection } from "../utils/studyDrawingBridge";
 import { SelectedVerse, VerseNote } from "../models";
+import { buildStudyVerseBlock } from "../utils/studyHtml";
 import { formatVerseRanges } from "../utils/verseRange";
 
-type NotesTab = "text" | "colors";
+type NotesTab = "text" | "colors" | "drawings";
+
+type DrawingGroup = {
+  id: string;
+  version: string;
+  abbrev: string;
+  bookName: string;
+  chapter: number;
+  verses: number[];
+  text: string;
+};
 
 type HighlightGroup = {
   id: string;
@@ -36,6 +53,7 @@ export default function NotesScreen() {
   const router = useRouter();
   const { version, navigateTo, highlights, bulkToggleHighlight } = useBible();
   const { notes, deleteNote } = useNotes();
+  const { drawings, clearVerses, setShowDrawings } = useDrawings();
   const { colors } = useTheme();
   const { ms, DESIGN } = useResponsive();
 
@@ -48,6 +66,14 @@ export default function NotesScreen() {
 
   const [activeTab, setActiveTab] = useState<NotesTab>("text");
   const [colorFilter, setColorFilter] = useState<string | null>(null);
+
+  const { toast, opacity, show } = useToast();
+  const [captureSelection, setCaptureSelection] =
+    useState<StudyDrawingSelection | null>(null);
+  const [studyHtml, setStudyHtml] = useState<string | null>(null);
+
+  const [activeDrawing, setActiveDrawing] = useState<DrawingGroup | null>(null);
+  const [isConfirmRemoveDrawing, setIsConfirmRemoveDrawing] = useState(false);
 
   const [activeNote, setActiveNote] = useState<VerseNote | null>(null);
   const [isConfirmDeleteVisible, setIsConfirmDeleteVisible] = useState(false);
@@ -108,6 +134,53 @@ export default function NotesScreen() {
     }
     return groups;
   }, [highlights, versionBooks]);
+
+  const drawingGroups = useMemo<DrawingGroup[]>(() => {
+    const bookOrder = new Map(versionBooks.map((b, i) => [b.abbrev, i]));
+    const items = Object.values(drawings)
+      .filter((d) => d.strokes.length > 0)
+      .sort((a, b) => {
+        if (a.version !== b.version) return a.version.localeCompare(b.version);
+        const bo =
+          (bookOrder.get(a.bookAbbrev) ?? Number.MAX_SAFE_INTEGER) -
+          (bookOrder.get(b.bookAbbrev) ?? Number.MAX_SAFE_INTEGER);
+        if (bo !== 0) return bo;
+        if (a.chapter !== b.chapter) return a.chapter - b.chapter;
+        return a.verse - b.verse;
+      });
+
+    const groups: DrawingGroup[] = [];
+    for (const item of items) {
+      const last = groups[groups.length - 1];
+      const verseText =
+        getBibleData(item.version).find((b) => b.abbrev === item.bookAbbrev)
+          ?.chapters[item.chapter - 1]?.[item.verse - 1] || "";
+      if (
+        last &&
+        last.version === item.version &&
+        last.abbrev === item.bookAbbrev &&
+        last.chapter === item.chapter &&
+        item.verse === last.verses[last.verses.length - 1] + 1
+      ) {
+        last.verses.push(item.verse);
+        last.text = verseText ? `${last.text} ${verseText}` : last.text;
+      } else {
+        groups.push({
+          id: `${item.version}-${item.bookAbbrev}-${item.chapter}-${item.verse}`,
+          version: item.version,
+          abbrev: item.bookAbbrev,
+          bookName:
+            versionBooks.find((b) => b.abbrev === item.bookAbbrev)?.name ||
+            item.bookName ||
+            item.bookAbbrev,
+          chapter: item.chapter,
+          verses: [item.verse],
+          text: verseText,
+        });
+      }
+    }
+    return groups;
+  }, [drawings, versionBooks]);
 
   const presentColors = useMemo(() => {
     const set = new Set(highlightGroups.map((g) => g.color));
@@ -357,6 +430,17 @@ export default function NotesScreen() {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionButton}
+              onPress={() => handleAddNoteToStudy(item)}
+              testID="note-add-to-study"
+            >
+              <BibleIcon
+                name="file-plus"
+                color={colors.primary}
+                size={ms(DESIGN.icon.sm)}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => handleEditNote(item)}
             >
               <BibleIcon
@@ -389,6 +473,147 @@ export default function NotesScreen() {
     );
   };
 
+  const handleReadDrawing = (group: DrawingGroup) => {
+    setShowDrawings(true);
+    navigateTo({
+      book: group.abbrev,
+      chapter: group.chapter,
+      verse: group.verses[0],
+    });
+    router.navigate(ROUTES.BIBLE as any);
+  };
+
+  const handleAddNoteToStudy = (item: VerseNote) => {
+    const verses = item.selectedVerses as SelectedVerse[];
+    const first = verses[0];
+    const book = versionBooks.find((b) => b.abbrev === first.bookAbbrev);
+    const bookName = book?.name || first.bookAbbrev;
+    const { ranges, sameChapter } = formatVerseRanges(verses);
+    const reference = `${sameChapter ? `${bookName} ${first.chapter}:${ranges}` : `${bookName} ${ranges}`} (${version})`;
+    setStudyHtml(
+      buildStudyVerseBlock({
+        reference,
+        lines: verses.map((v) => ({
+          verse: v.verse,
+          text: book?.chapters[v.chapter - 1]?.[v.verse - 1] || "",
+        })),
+        noteText: item.text,
+      }),
+    );
+  };
+
+  const handleAddHighlightToStudy = (group: HighlightGroup) => {
+    const book = versionBooks.find((b) => b.abbrev === group.abbrev);
+    const { ranges } = formatVerseRanges(group.verses);
+    setStudyHtml(
+      buildStudyVerseBlock({
+        reference: `${group.bookName} ${group.chapter}:${ranges} (${version})`,
+        lines: group.verses.map((verse) => ({
+          verse,
+          text: book?.chapters[group.chapter - 1]?.[verse - 1] || "",
+        })),
+        highlightHex: getColorHex(group.color),
+      }),
+    );
+  };
+
+  const handleAddDrawingToStudy = (group: DrawingGroup) => {
+    const book = getBibleData(group.version).find(
+      (b) => b.abbrev === group.abbrev,
+    );
+    setCaptureSelection({
+      version: group.version,
+      bookAbbrev: group.abbrev,
+      bookName: group.bookName,
+      chapter: group.chapter,
+      verses: group.verses.map((verse) => ({
+        verse,
+        text: book?.chapters[group.chapter - 1]?.[verse - 1] || "",
+      })),
+    });
+  };
+
+  const handleDrawingCaptured = (html: string | null) => {
+    setCaptureSelection(null);
+    if (html) setStudyHtml(html);
+    else show("Não foi possível gerar a imagem do desenho", "warning");
+  };
+
+  const renderDrawing = ({ item }: { item: DrawingGroup }) => {
+    const { ranges } = formatVerseRanges(item.verses);
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.card,
+          styles.highlightCard,
+          { borderLeftColor: colors.primary },
+        ]}
+        activeOpacity={0.8}
+        onPress={() => handleReadDrawing(item)}
+      >
+        <View style={styles.cardHeader}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: ms(DESIGN.spacing.sm),
+            }}
+          >
+            <View style={styles.refBadge}>
+              <BibleText style={styles.refText}>
+                {item.bookName} {item.chapter}:{ranges}
+              </BibleText>
+            </View>
+            <BibleText
+              style={{
+                color: colors.textMuted,
+                fontSize: ms(DESIGN.fontSize.xs),
+              }}
+            >
+              {item.version}
+            </BibleText>
+          </View>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleAddDrawingToStudy(item)}
+              testID="drawing-add-to-study"
+            >
+              <BibleIcon
+                name="file-plus"
+                color={colors.primary}
+                size={ms(DESIGN.icon.sm)}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                setActiveDrawing(item);
+                setIsConfirmRemoveDrawing(true);
+              }}
+            >
+              <BibleIcon
+                name="trash-2"
+                color={colors.error}
+                size={ms(DESIGN.icon.sm)}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {item.text ? (
+          <BibleText
+            style={[styles.verseText, styles.highlightVerseText]}
+            numberOfLines={4}
+          >
+            {item.text}
+          </BibleText>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
+
   const renderHighlight = ({ item }: { item: HighlightGroup }) => {
     const { ranges } = formatVerseRanges(item.verses);
     const hex = getColorHex(item.color);
@@ -417,6 +642,17 @@ export default function NotesScreen() {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionButton}
+              onPress={() => handleAddHighlightToStudy(item)}
+              testID="highlight-add-to-study"
+            >
+              <BibleIcon
+                name="file-plus"
+                color={colors.primary}
+                size={ms(DESIGN.icon.sm)}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => handleRequestRemoveHighlight(item)}
             >
               <BibleIcon
@@ -440,7 +676,10 @@ export default function NotesScreen() {
     );
   };
 
-  const hasAnything = validNotes.length > 0 || highlightGroups.length > 0;
+  const hasAnything =
+    validNotes.length > 0 ||
+    highlightGroups.length > 0 ||
+    drawingGroups.length > 0;
 
   return (
     <View style={styles.container}>
@@ -465,6 +704,7 @@ export default function NotesScreen() {
               [
                 { key: "text", label: "Texto", icon: "file-text" },
                 { key: "colors", label: "Cores", icon: "bookmark" },
+                { key: "drawings", label: "Desenhos", icon: "edit-2" },
               ] as { key: NotesTab; label: string; icon: any }[]
             ).map((tab) => {
               const isActive = activeTab === tab.key;
@@ -517,6 +757,30 @@ export default function NotesScreen() {
                   renderItem={renderNote}
                   // @ts-ignore
                   estimatedItemSize={ms(180)}
+                  contentContainerStyle={styles.listContent}
+                  showsVerticalScrollIndicator={false}
+                />
+              )
+            ) : activeTab === "drawings" ? (
+              drawingGroups.length === 0 ? (
+                <View style={styles.tabEmpty}>
+                  <BibleIcon
+                    name="edit-2"
+                    size={ms(DESIGN.icon.lg)}
+                    color={colors.textMuted}
+                  />
+                  <BibleText style={styles.tabEmptyText}>
+                    Nenhum desenho. Selecione versículos na leitura e toque em
+                    Desenhar.
+                  </BibleText>
+                </View>
+              ) : (
+                <FlashList
+                  data={drawingGroups}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderDrawing}
+                  // @ts-ignore
+                  estimatedItemSize={ms(200)}
                   contentContainerStyle={styles.listContent}
                   showsVerticalScrollIndicator={false}
                 />
@@ -664,6 +928,44 @@ export default function NotesScreen() {
             deleteNote(activeNote.id);
           }
           setIsConfirmDeleteVisible(false);
+        }}
+      />
+
+      {captureSelection && (
+        <StudyDrawingCapture
+          selection={captureSelection}
+          onDone={handleDrawingCaptured}
+        />
+      )}
+
+      <BibleAddToStudyModal
+        visible={studyHtml !== null}
+        onClose={() => setStudyHtml(null)}
+        selectedVerses={[]}
+        customHtml={studyHtml ?? undefined}
+        onShowToast={show}
+      />
+
+      <BibleToast opacity={opacity} toast={toast} />
+
+      <BibleConfirmModal
+        visible={isConfirmRemoveDrawing}
+        title="Apagar desenhos"
+        message="Deseja apagar os desenhos destes versículos?"
+        isDanger={true}
+        confirmText="Apagar"
+        onCancel={() => setIsConfirmRemoveDrawing(false)}
+        onConfirm={() => {
+          if (activeDrawing) {
+            clearVerses(
+              activeDrawing.version,
+              activeDrawing.abbrev,
+              activeDrawing.chapter,
+              activeDrawing.verses,
+            );
+          }
+          setIsConfirmRemoveDrawing(false);
+          setActiveDrawing(null);
         }}
       />
 

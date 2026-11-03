@@ -34,6 +34,13 @@ import {
 } from "../hooks/usePlanReading";
 import { savePlanPosition } from "../utils/planReadingPositions";
 import { PlanReadingFinishCard } from "../components/PlanReadingFinishCard";
+import { PlanResumeCard } from "../components/PlanResumeCard";
+import { StudyDrawingCapture } from "../components/StudyDrawingCapture";
+import {
+  setStudyDrawingResult,
+  StudyDrawingRequest,
+  takeStudyDrawingRequest,
+} from "../utils/studyDrawingBridge";
 import { DrawingToolbar } from "../components/DrawingToolbar";
 import { useDrawings } from "../hooks/useDrawings";
 import { BibleTopBar } from "../components/BibleTopBar";
@@ -47,6 +54,7 @@ import { BibleHistoryModal } from "../components/modals/BibleHistoryModal";
 import { DonateModal } from "../components/modals/DonateModal";
 import { getBibleTitles } from "../data/bible-titles";
 import { getBibleData } from "../data/bible-version";
+import { ROUTES } from "../constants/routes";
 import { useAudioSettings } from "../hooks/useAudioSettings";
 import { useBible } from "../hooks/useBible";
 import { useBibleModals } from "../hooks/useBibleModals";
@@ -59,6 +67,8 @@ import { useToast } from "../hooks/useToast";
 const AUDIO_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 100 };
 const SCROLL_TOP_BUTTON_OFFSET = 600;
 const PLAN_AUTO_COMPLETE_DELAY = 4000;
+const PLAN_SCROLL_IDLE_DELAY = 1500;
+const STUDY_DRAWING_START_DELAY = 300;
 
 export default function BibleScreen() {
   const {
@@ -106,6 +116,7 @@ export default function BibleScreen() {
     ),
     [show],
   );
+  const planHeader = useMemo(() => <PlanResumeCard />, []);
   const {
     isActive: isPlanActive,
     isChapterDone: isPlanChapterDone,
@@ -187,6 +198,7 @@ export default function BibleScreen() {
   const [isReaderScrolledDown, setIsReaderScrolledDown] = useState(false);
   const [readProgress, setReadProgress] = useState(0);
   const scrollOffsetRef = useRef(0);
+  const lastScrollAtRef = useRef(0);
 
   const setNavVisible = useCallback(
     (visible: boolean) => {
@@ -230,6 +242,7 @@ export default function BibleScreen() {
     (nativeEvent: any) => {
       const offsetY = nativeEvent.contentOffset.y;
       scrollOffsetRef.current = offsetY;
+      lastScrollAtRef.current = Date.now();
       const atEnd = isAtScrollEnd(nativeEvent);
       setIsReaderScrolledDown(offsetY > ms(SCROLL_TOP_BUTTON_OFFSET));
       const maxOffset =
@@ -686,7 +699,12 @@ export default function BibleScreen() {
 
   useEffect(() => {
     if (!isFooterSeen || !isPlanActive || isPlanChapterDone) return;
-    const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const attempt = () => {
+      if (Date.now() - lastScrollAtRef.current < PLAN_SCROLL_IDLE_DELAY) {
+        timer = setTimeout(attempt, PLAN_SCROLL_IDLE_DELAY);
+        return;
+      }
       const undo = markPlanChapterDone();
       if (undo) {
         show("Capítulo marcado como lido", "success", {
@@ -694,7 +712,8 @@ export default function BibleScreen() {
           onPress: undo,
         });
       }
-    }, PLAN_AUTO_COMPLETE_DELAY);
+    };
+    timer = setTimeout(attempt, PLAN_AUTO_COMPLETE_DELAY);
     return () => clearTimeout(timer);
   }, [
     isFooterSeen,
@@ -743,7 +762,13 @@ export default function BibleScreen() {
   const isAudioModalVisibleRef = useRef(isAudioModalVisible);
   isAudioModalVisibleRef.current = isAudioModalVisible;
 
-  const { isDrawMode, startDrawMode, stopDrawMode } = useDrawings();
+  const { drawings, isDrawMode, startDrawMode, stopDrawMode } = useDrawings();
+  const drawingsRef = useRef(drawings);
+  const studyBaselineRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    drawingsRef.current = drawings;
+  }, [drawings]);
   const isDrawModeRef = useRef(isDrawMode);
   isDrawModeRef.current = isDrawMode;
 
@@ -789,6 +814,99 @@ export default function BibleScreen() {
   );
 
   useEffect(() => stopDrawMode, [stopDrawMode]);
+
+  const [studyDrawing, setStudyDrawing] = useState<StudyDrawingRequest | null>(
+    null,
+  );
+  const [captureSession, setCaptureSession] =
+    useState<StudyDrawingRequest | null>(null);
+
+  const [pendingStudyRequest, setPendingStudyRequest] =
+    useState<StudyDrawingRequest | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const request = takeStudyDrawingRequest();
+      if (request) setPendingStudyRequest(request);
+    }, []),
+  );
+
+  useEffect(() => {
+    if (!pendingStudyRequest || !isReady) return;
+    const timer = setTimeout(() => {
+      if (isSplitScreen) setIsSplitScreen(false);
+      studyBaselineRef.current = Object.fromEntries(
+        Object.entries(drawingsRef.current).map(([key, entry]) => [
+          key,
+          entry.strokes.map((st) => st.id).join(","),
+        ]),
+      );
+      setStudyDrawing(pendingStudyRequest);
+      setPendingStudyRequest(null);
+      handleStartDrawing(
+        pendingStudyRequest.selection.verses.map(
+          (v) => ({ verse: v.verse }) as SelectedVerse,
+        ),
+      );
+    }, STUDY_DRAWING_START_DELAY);
+    return () => clearTimeout(timer);
+  }, [
+    pendingStudyRequest,
+    isReady,
+    isSplitScreen,
+    setIsSplitScreen,
+    handleStartDrawing,
+  ]);
+
+  useEffect(() => {
+    if (!isDrawMode) setStudyDrawing(null);
+  }, [isDrawMode]);
+
+  const handleDrawDone = useCallback(() => {
+    if (studyDrawing) {
+      const { selection } = studyDrawing;
+      const changed = Object.entries(drawings)
+        .filter(
+          ([key, entry]) =>
+            entry.version === selection.version &&
+            entry.bookAbbrev === selection.bookAbbrev &&
+            entry.chapter === selection.chapter &&
+            entry.strokes.map((st) => st.id).join(",") !==
+              (studyBaselineRef.current[key] ?? ""),
+        )
+        .map(([, entry]) => entry.verse);
+      const numbers = [...selection.verses.map((v) => v.verse), ...changed];
+      const min = Math.min(...numbers);
+      const max = Math.max(...numbers);
+      const rows = (sectionData[0]?.data ?? [])
+        .filter((v: any) => v.verse >= min && v.verse <= max)
+        .map((v: any) => ({ verse: v.verse, text: v.text }));
+      setCaptureSession({
+        studyId: studyDrawing.studyId,
+        previousVersion: studyDrawing.previousVersion,
+        selection: {
+          ...selection,
+          verses: rows.length > 0 ? rows : selection.verses,
+        },
+      });
+    }
+    stopDrawMode();
+  }, [studyDrawing, drawings, sectionData, stopDrawMode]);
+
+  const handleStudyDrawingCaptured = useCallback(
+    (html: string | null) => {
+      const studyId = captureSession?.studyId;
+      const previousVersion = captureSession?.previousVersion;
+      setCaptureSession(null);
+      if (!studyId) return;
+      if (previousVersion && previousVersion !== version) {
+        setVersion(previousVersion);
+      }
+      if (html) setStudyDrawingResult(studyId, html);
+      router.navigate(ROUTES.STUDY_EDITOR(studyId) as any);
+    },
+    [captureSession, router, version, setVersion],
+  );
 
   useEffect(() => {
     if (isSplitScreen) stopDrawMode();
@@ -1380,6 +1498,7 @@ export default function BibleScreen() {
             <View style={styles.splitPane}>
               <BibleVerseReader
                 footerExtra={planFooter}
+                headerExtra={planHeader}
                 listRef={sectionListRef}
                 sections={sectionData}
                 blinkingVerse={blinkingVerse}
@@ -1567,7 +1686,7 @@ export default function BibleScreen() {
           bulkToggleHighlight(verses, color);
           onActionSheetClose();
         }}
-        onShowToast={(msg) => show(msg)}
+        onShowToast={show}
         onDraw={isSplitScreen ? undefined : handleStartDrawing}
       />
 
@@ -1577,7 +1696,14 @@ export default function BibleScreen() {
           bookAbbrev={currentBook.abbrev}
           chapter={chapter}
           verses={drawVerses}
-          onDone={stopDrawMode}
+          onDone={handleDrawDone}
+        />
+      )}
+
+      {captureSession && (
+        <StudyDrawingCapture
+          selection={captureSession.selection}
+          onDone={handleStudyDrawingCaptured}
         />
       )}
 

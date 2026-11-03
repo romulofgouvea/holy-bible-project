@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { BibleText } from "./BibleText";
@@ -9,6 +9,7 @@ type BibleGridBlockProps = {
   widthPercentage?: number;
   exactWidth?: number;
   isSelected?: boolean;
+  hasMark?: boolean;
   onPress: () => void;
   testID?: string;
 };
@@ -18,6 +19,7 @@ export function BibleGridBlock({
   widthPercentage,
   exactWidth,
   isSelected,
+  hasMark,
   onPress,
   testID,
 }: BibleGridBlockProps) {
@@ -32,6 +34,14 @@ export function BibleGridBlock({
           borderRadius: ms(DESIGN.borderRadius.lg),
           justifyContent: "center",
           alignItems: "center",
+        },
+        markDot: {
+          position: "absolute",
+          top: ms(DESIGN.spacing.sm),
+          right: ms(DESIGN.spacing.sm),
+          width: ms(DESIGN.spacing.sm),
+          height: ms(DESIGN.spacing.sm),
+          borderRadius: ms(DESIGN.borderRadius.full),
         },
         gridText: {
           fontWeight: "800",
@@ -72,6 +82,16 @@ export function BibleGridBlock({
       >
         {title}
       </BibleText>
+      {hasMark && (
+        <View
+          style={[
+            styles.markDot,
+            {
+              backgroundColor: isSelected ? colors.onPrimary : colors.primary,
+            },
+          ]}
+        />
+      )}
     </TouchableOpacity>
   );
 }

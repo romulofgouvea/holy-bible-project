@@ -7,6 +7,18 @@ import { sanitizeHtml } from "../utils/sanitize";
 import { BACKUP_RESTORED_EVENT, writeAutoBackupFile } from "../utils/backup";
 export type { Study };
 
+export const STUDIES_CHANGED_EVENT = "StudiesChanged";
+export const STUDIES_STORAGE_LIMIT = 1_500_000;
+
+export async function canStoreStudyData(extraLength: number) {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.STUDIES);
+    return (raw?.length ?? 0) + extraLength <= STUDIES_STORAGE_LIMIT;
+  } catch {
+    return false;
+  }
+}
+
 function makeId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
@@ -88,14 +100,21 @@ export function useStudies() {
       BACKUP_RESTORED_EVENT,
       reloadFromStorage,
     );
-    return () => sub.remove();
+    const changedSub = DeviceEventEmitter.addListener(
+      STUDIES_CHANGED_EVENT,
+      reloadFromStorage,
+    );
+    return () => {
+      sub.remove();
+      changedSub.remove();
+    };
   }, [reloadFromStorage]);
 
   const persist = useCallback((updated: Study[]) => {
     setStudies(updated);
-    AsyncStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(updated)).catch(
-      () => {},
-    );
+    AsyncStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(updated))
+      .then(() => DeviceEventEmitter.emit(STUDIES_CHANGED_EVENT))
+      .catch(() => DeviceEventEmitter.emit(STUDIES_CHANGED_EVENT));
 
     AsyncStorage.getItem(STORAGE_KEYS.AUTO_BACKUP)
       .then((val) => {
@@ -103,6 +122,14 @@ export function useStudies() {
       })
       .catch(() => {});
   }, []);
+
+  const mutate = useCallback(
+    async (change: (current: Study[]) => Study[]) => {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.STUDIES);
+      persist(change(parseStudiesFromRaw(raw)));
+    },
+    [persist],
+  );
 
   const createStudy = useCallback(
     (title: string, content?: string, description?: string) => {
@@ -126,10 +153,10 @@ export function useStudies() {
         content: finalContent,
         isActive: true,
       };
-      persist([study, ...studies]);
+      mutate((current) => [study, ...current]);
       return study.id;
     },
-    [studies, persist],
+    [mutate],
   );
 
   const importBulk = useCallback(
@@ -165,71 +192,93 @@ export function useStudies() {
         });
 
       if (newStudies.length > 0) {
-        const combined = [...newStudies, ...studies];
-        combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        persist(combined);
+        mutate((current) => {
+          const currentIds = new Set(current.map((s) => s.id));
+          const combined = [
+            ...newStudies.filter((s) => !currentIds.has(s.id)),
+            ...current,
+          ];
+          combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          return combined;
+        });
       }
       return newStudies.length;
     },
-    [studies, persist],
+    [studies, mutate],
   );
 
   const updateStudy = useCallback(
     (id: string, content: string, title?: string) => {
-      persist(
-        studies.map((s) =>
+      mutate((current) =>
+        current.map((s) =>
           s.id === id
             ? { ...s, content, ...(title !== undefined ? { title } : {}) }
             : s,
         ),
       );
     },
-    [studies, persist],
+    [mutate],
+  );
+
+  const appendToStudy = useCallback(
+    async (id: string, html: string) => {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.STUDIES);
+      if ((raw?.length ?? 0) + html.length > STUDIES_STORAGE_LIMIT) {
+        return false;
+      }
+      persist(
+        parseStudiesFromRaw(raw).map((s) =>
+          s.id === id ? { ...s, content: s.content + html } : s,
+        ),
+      );
+      return true;
+    },
+    [persist],
   );
 
   const deleteStudy = useCallback(
     (id: string) => {
-      persist(
-        studies.map((s) =>
+      mutate((current) =>
+        current.map((s) =>
           s.id === id ? { ...s, isActive: false, deletedAt: Date.now() } : s,
         ),
       );
     },
-    [studies, persist],
+    [mutate],
   );
 
   const deleteMultiple = useCallback(
     (ids: string[]) => {
       const idSet = new Set(ids);
-      persist(
-        studies.map((s) =>
+      mutate((current) =>
+        current.map((s) =>
           idSet.has(s.id)
             ? { ...s, isActive: false, deletedAt: Date.now() }
             : s,
         ),
       );
     },
-    [studies, persist],
+    [mutate],
   );
 
   const restoreMultiple = useCallback(
     (ids: string[]) => {
       const idSet = new Set(ids);
-      persist(
-        studies.map((s) =>
+      mutate((current) =>
+        current.map((s) =>
           idSet.has(s.id) ? { ...s, isActive: true, deletedAt: undefined } : s,
         ),
       );
     },
-    [studies, persist],
+    [mutate],
   );
 
   const deleteMultiplePermanently = useCallback(
     (ids: string[]) => {
       const idSet = new Set(ids);
-      persist(studies.filter((s) => !idSet.has(s.id)));
+      mutate((current) => current.filter((s) => !idSet.has(s.id)));
     },
-    [studies, persist],
+    [mutate],
   );
 
   const getStudy = useCallback(
@@ -251,6 +300,7 @@ export function useStudies() {
     importBulk,
     reloadFromStorage,
     updateStudy,
+    appendToStudy,
     deleteStudy,
     deleteMultiple,
     restoreMultiple,

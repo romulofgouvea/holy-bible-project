@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { Book, getBibleData } from "../../data/bible-version";
 import { useBible } from "../../hooks/useBible";
+import { useDrawings } from "../../hooks/useDrawings";
+import { useNotes } from "../../hooks/useNotes";
 import { useBibleModals } from "../../hooks/useBibleModals";
 import { useResponsive } from "../../hooks/useResponsive";
 import { selectionHaptic } from "../../utils/haptics";
@@ -34,9 +36,12 @@ export function GlobalBibleModals() {
     setVerse: setGlobalVerse,
     versionBooks: globalVersionBooks,
     currentBook: globalBook,
+    highlights,
   } = useBible();
 
   const { ms } = useResponsive();
+  const { drawings } = useDrawings();
+  const { notes } = useNotes();
 
   const versionBooks = useMemo(() => {
     if (navVersion && navVersion !== globalVersion) {
@@ -51,6 +56,31 @@ export function GlobalBibleModals() {
     () => Array.from({ length: activeChapterCount }, (_, i) => i + 1),
     [activeChapterCount],
   );
+
+  const markedChapters = useMemo(() => {
+    const marked = new Set<number>();
+    const abbrev = activeBook?.abbrev;
+    if (!abbrev) return marked;
+    const activeVersion = navVersion || globalVersion;
+    Object.values(drawings).forEach((d) => {
+      if (
+        d.bookAbbrev === abbrev &&
+        d.version === activeVersion &&
+        d.strokes.length > 0
+      ) {
+        marked.add(d.chapter);
+      }
+    });
+    notes.forEach((n) =>
+      n.selectedVerses?.forEach((v) => {
+        if (v.bookAbbrev === abbrev) marked.add(v.chapter);
+      }),
+    );
+    Object.values(highlights).forEach((h) => {
+      if (h.abbrev === abbrev) marked.add(h.chapter);
+    });
+    return marked;
+  }, [activeBook, navVersion, globalVersion, drawings, notes, highlights]);
 
   const activeVerses = useMemo(() => {
     const ch = navChapter || globalChapter;
@@ -155,6 +185,7 @@ export function GlobalBibleModals() {
         iconName="list"
         items={activeChapterNumbers}
         currentItem={options.initialChapter || highlightedChapter}
+        markedItems={markedChapters}
         onSelect={(num) => {
           selectionHaptic();
           setNavChapter(num);
