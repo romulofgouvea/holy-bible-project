@@ -81,6 +81,7 @@ type VerseReaderProps = {
   onMomentumScrollEnd?: (event: any) => void;
   scrollEventThrottle?: number;
   splitMode?: boolean;
+  footerExtra?: React.ReactNode;
 };
 
 const renderVerseContent = (
@@ -491,6 +492,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     onMomentumScrollEnd,
     scrollEventThrottle,
     splitMode,
+    footerExtra,
   } = props;
   const { ms, DESIGN } = useResponsive();
   const { colors } = useTheme();
@@ -798,6 +800,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
                     {item.copyright}
                   </BibleText>
                 </View>
+                {footerExtra}
               </View>
             );
           }

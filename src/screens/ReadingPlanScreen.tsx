@@ -94,6 +94,7 @@ export default function ReadingPlanScreen() {
     createBiblePlan,
     toggleChapter,
     setDaysCompleted,
+    startPlanReading,
     isDayCompleted,
     isChapterCompleted,
     getDayCompletedAt,
@@ -415,12 +416,15 @@ export default function ReadingPlanScreen() {
   }, []);
 
   const handleNavigateToChapter = useCallback(
-    (bookAbbrev: string, chapter: number) => {
+    (bookAbbrev: string, chapter: number, day: FlatDayItem) => {
+      if (selectedPlan) {
+        startPlanReading(selectedPlan.id, day.monthNumber, day.day);
+      }
       setIsChapterModalVisible(false);
       navigateTo({ book: bookAbbrev, chapter, verse: 1 });
       router.navigate(ROUTES.BIBLE as any);
     },
-    [navigateTo, router],
+    [navigateTo, router, selectedPlan, startPlanReading],
   );
 
   const applyDays = useCallback(
@@ -1059,7 +1063,7 @@ export default function ReadingPlanScreen() {
                     <TouchableOpacity
                       key={`${c.abbrev}-${c.chapter}`}
                       onPress={() =>
-                        handleNavigateToChapter(c.abbrev, c.chapter)
+                        handleNavigateToChapter(c.abbrev, c.chapter, item)
                       }
                       style={{
                         backgroundColor: c.isDone
@@ -1562,7 +1566,7 @@ export default function ReadingPlanScreen() {
               alignItems: "center",
               gap: ms(DESIGN.spacing.xs),
               backgroundColor: colors.primary,
-              borderRadius: ms(DESIGN.borderRadius.full),
+              borderRadius: ms(DESIGN.borderRadius.md),
               paddingVertical: ms(DESIGN.spacing.xs),
               paddingHorizontal: ms(DESIGN.spacing.md),
               elevation: 4,
@@ -1587,27 +1591,28 @@ export default function ReadingPlanScreen() {
           </TouchableOpacity>
         )}
         {screenView === "detail" && isScrolledDown && (
-          <TouchableOpacity
-            style={{
-              position: "absolute",
-              right: ms(DESIGN.spacing.lg),
-              bottom: ms(DESIGN.spacing.lg),
-              backgroundColor: colors.primary,
-              borderRadius: ms(DESIGN.borderRadius.full),
-              padding: ms(DESIGN.spacing.md),
-              elevation: 4,
-            }}
+          <BibleIcon
+            name="arrow-up"
+            size={ms(DESIGN.fontSize.xxl)}
+            containerSize={ms(DESIGN.spacing.xxl)}
+            color={colors.onPrimary}
+            backgroundColor={colors.primary}
+            borderRadius={ms(DESIGN.borderRadius.md)}
             onPress={() =>
               listRef.current?.scrollToOffset({ offset: 0, animated: true })
             }
             activeOpacity={0.8}
-          >
-            <BibleIcon
-              name="arrow-up"
-              color={colors.onPrimary}
-              size={ms(DESIGN.icon.sm)}
-            />
-          </TouchableOpacity>
+            style={{
+              position: "absolute",
+              right: ms(DESIGN.spacing.lg),
+              bottom: ms(DESIGN.spacing.xl),
+              elevation: 4,
+              shadowColor: colors.shadow,
+              shadowOffset: { width: 0, height: ms(DESIGN.spacing.tiny) },
+              shadowOpacity: 0.25,
+              shadowRadius: ms(DESIGN.spacing.xs),
+            }}
+          />
         )}
       </View>
 
@@ -1757,11 +1762,6 @@ export default function ReadingPlanScreen() {
         footer={
           selectedDayInfo && selectedPlan ? (
             <DayModalFooter
-              isAllCompleted={isDayCompleted(
-                selectedPlan,
-                selectedDayInfo.monthNumber,
-                selectedDayInfo.day,
-              )}
               pendingUpTo={
                 flatDays.filter(
                   (d) =>
@@ -1769,10 +1769,6 @@ export default function ReadingPlanScreen() {
                     !isDayCompleted(selectedPlan, d.monthNumber, d.day),
                 ).length
               }
-              onToggle={(isAllCompleted) => {
-                handleQuickToggleDay(selectedDayInfo, isAllCompleted);
-                if (!isAllCompleted) setIsChapterModalVisible(false);
-              }}
               onMarkUpTo={() => handleMarkUpTo(selectedDayInfo)}
             />
           ) : null
@@ -1809,7 +1805,11 @@ export default function ReadingPlanScreen() {
                       },
                     ]}
                     onPress={() =>
-                      handleNavigateToChapter(book.abbrev, chapter)
+                      handleNavigateToChapter(
+                        book.abbrev,
+                        chapter,
+                        selectedDayInfo,
+                      )
                     }
                     activeOpacity={0.7}
                   >
@@ -1877,68 +1877,34 @@ export default function ReadingPlanScreen() {
 }
 
 function DayModalFooter({
-  isAllCompleted,
   pendingUpTo,
-  onToggle,
   onMarkUpTo,
 }: {
-  isAllCompleted: boolean;
   pendingUpTo: number;
-  onToggle: (isAllCompleted: boolean) => void;
   onMarkUpTo: () => void;
 }) {
   const { ms, DESIGN } = useResponsive();
   const { colors } = useTheme();
+  if (pendingUpTo <= 1) return null;
   return (
-    <View style={{ gap: ms(DESIGN.spacing.sm) }}>
-      <TouchableOpacity
+    <TouchableOpacity
+      style={{
+        alignItems: "center",
+        paddingVertical: ms(DESIGN.spacing.sm),
+      }}
+      onPress={onMarkUpTo}
+      activeOpacity={0.7}
+    >
+      <BibleText
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          paddingVertical: ms(DESIGN.spacing.md),
-          backgroundColor: isAllCompleted
-            ? colors.surface
-            : colors.primary + "15",
-          borderWidth: 1,
-          borderColor: isAllCompleted ? colors.border : colors.primary + "30",
-          borderRadius: ms(DESIGN.borderRadius.md),
-          marginHorizontal: ms(DESIGN.spacing.sm),
+          color: colors.primary,
+          fontWeight: "700",
+          fontSize: ms(DESIGN.fontSize.sm),
         }}
-        onPress={() => onToggle(isAllCompleted)}
-        activeOpacity={0.7}
       >
-        <BibleText
-          style={{
-            color: isAllCompleted ? colors.textMuted : colors.primary,
-            fontWeight: "700",
-            fontSize: ms(DESIGN.fontSize.md),
-          }}
-        >
-          {isAllCompleted ? "Desmarcar todos" : "Marcar todos como lidos"}
-        </BibleText>
-      </TouchableOpacity>
-      {pendingUpTo > 1 && (
-        <TouchableOpacity
-          style={{
-            alignItems: "center",
-            paddingVertical: ms(DESIGN.spacing.sm),
-          }}
-          onPress={onMarkUpTo}
-          activeOpacity={0.7}
-        >
-          <BibleText
-            style={{
-              color: colors.primary,
-              fontWeight: "700",
-              fontSize: ms(DESIGN.fontSize.sm),
-            }}
-          >
-            Marcar este dia e os {pendingUpTo - 1} anteriores
-          </BibleText>
-        </TouchableOpacity>
-      )}
-    </View>
+        Marcar este dia e os {pendingUpTo - 1} anteriores
+      </BibleText>
+    </TouchableOpacity>
   );
 }
 

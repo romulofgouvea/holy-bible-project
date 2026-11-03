@@ -14,6 +14,7 @@ import React, {
 import {
   Animated,
   BackHandler,
+  DeviceEventEmitter,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -27,6 +28,8 @@ import { BibleText } from "../components/BibleText";
 import { BibleToast } from "../components/BibleToast";
 import { BibleLocationBar } from "../components/BibleLocationBar";
 import { DrawingCaptureLayer } from "../components/DrawingCaptureLayer";
+import { PLAN_READING_NAVIGATED_EVENT } from "../hooks/usePlanReading";
+import { PlanReadingFinishCard } from "../components/PlanReadingFinishCard";
 import { DrawingToolbar } from "../components/DrawingToolbar";
 import { useDrawings } from "../hooks/useDrawings";
 import { BibleTopBar } from "../components/BibleTopBar";
@@ -84,6 +87,10 @@ export default function BibleScreen() {
 
   const { ms, DESIGN } = useResponsive();
   const { toast, opacity, show } = useToast();
+  const planFooter = useMemo(
+    () => <PlanReadingFinishCard onMessage={show} />,
+    [show],
+  );
   const { colors } = useTheme();
   const { readerTheme, readerColors } = useReaderSettings();
   const primaryColor =
@@ -591,6 +598,21 @@ export default function BibleScreen() {
     },
     [changeChapter, scrollToVerse],
   );
+
+  useEffect(() => {
+    const scrollToTop = () =>
+      sectionListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    const sub = DeviceEventEmitter.addListener(
+      PLAN_READING_NAVIGATED_EVENT,
+      () => {
+        setIsActionSheetVisible(false);
+        setSelectedVerses([]);
+        scrollToTop();
+        setTimeout(scrollToTop, 300);
+      },
+    );
+    return () => sub.remove();
+  }, [sectionListRef]);
 
   const selectVerseForActions = (item: any) => {
     const verseText =
@@ -1267,6 +1289,7 @@ export default function BibleScreen() {
           ) : (
             <View style={styles.splitPane}>
               <BibleVerseReader
+                footerExtra={planFooter}
                 listRef={sectionListRef}
                 sections={sectionData}
                 blinkingVerse={blinkingVerse}
