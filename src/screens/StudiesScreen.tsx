@@ -254,7 +254,7 @@ export default function EstudosScreen() {
     <BiblePageEmpty
       title="Nenhum estudo ainda"
       description="Abra o menu superior nos três pontos para criar seu primeiro estudo"
-      icon="book"
+      icon="feather"
     />
   );
 
@@ -304,7 +304,7 @@ export default function EstudosScreen() {
             </TouchableOpacity>
           ) : (
             <BibleIcon
-              name="book-open"
+              name="feather"
               color={colors.primary}
               backgroundColor={colors.primary + "20"}
               containerSize={ms(DESIGN.icon.xl)}

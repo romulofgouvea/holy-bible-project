@@ -740,7 +740,7 @@ export default function ReadingPlanScreen() {
                 </TouchableOpacity>
               ) : (
                 <BibleIcon
-                  name="book-open"
+                  name="calendar"
                   color={colors.primary}
                   backgroundColor={colors.primary + "20"}
                   containerSize={ms(DESIGN.icon.xl)}

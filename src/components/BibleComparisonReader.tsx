@@ -233,7 +233,7 @@ const VerseColumn = React.memo((props: VerseColumnProps) => {
           <BibleText style={{ color: primaryColor, opacity: 0.8 }}>
             {"\u00A0"}
             <BibleIcon
-              name="edit-3"
+              name="message-square"
               size={ms(DESIGN.fontSize.xs * fontSizeMultiplier)}
               color={primaryColor}
             />

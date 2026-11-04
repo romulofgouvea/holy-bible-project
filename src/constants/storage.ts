@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   SEARCH_HISTORY: "bible_search_history",
   HIGHLIGHTS: "bible_highlights",
   NOTES: "bible_notes",
+  COLLECTIONS: "bible_collections",
   DRAWINGS: "bible_drawings",
   SHOW_DRAWINGS: "bible_show_drawings",
   DRAWING_COLOR: "bible_drawing_color",

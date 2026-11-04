@@ -537,7 +537,7 @@ export default function NotesScreen() {
               testID="note-add-to-study"
             >
               <BibleIcon
-                name="file-plus"
+                name="feather"
                 color={colors.primary}
                 size={ms(DESIGN.icon.sm)}
               />
@@ -547,7 +547,7 @@ export default function NotesScreen() {
               onPress={() => handleEditNote(item)}
             >
               <BibleIcon
-                name="edit-2"
+                name="edit"
                 color={colors.primary}
                 size={ms(DESIGN.icon.sm)}
               />
@@ -726,7 +726,7 @@ export default function NotesScreen() {
               testID="drawing-add-to-study"
             >
               <BibleIcon
-                name="file-plus"
+                name="feather"
                 color={colors.primary}
                 size={ms(DESIGN.icon.sm)}
               />
@@ -799,7 +799,7 @@ export default function NotesScreen() {
               testID="highlight-add-to-study"
             >
               <BibleIcon
-                name="file-plus"
+                name="feather"
                 color={colors.primary}
                 size={ms(DESIGN.icon.sm)}
               />
@@ -846,7 +846,7 @@ export default function NotesScreen() {
         <BiblePageEmpty
           title="Anotações"
           description="Você ainda não possui nenhuma anotação. Para criar uma, selecione um ou mais versículos na tela de leitura."
-          icon="file-text"
+          icon="message-square"
           actionLabel="Ir para a Bíblia"
           onAction={() => router.navigate(ROUTES.BIBLE as any)}
         />
@@ -855,9 +855,9 @@ export default function NotesScreen() {
           <View style={styles.tabRow}>
             {(
               [
-                { key: "text", label: "Texto", icon: "file-text" },
-                { key: "colors", label: "Cores", icon: "bookmark" },
-                { key: "drawings", label: "Desenhos", icon: "edit-2" },
+                { key: "text", label: "Comentários", icon: "message-square" },
+                { key: "colors", label: "Cores", icon: "droplet" },
+                { key: "drawings", label: "Desenhos", icon: "pen-tool" },
               ] as { key: NotesTab; label: string; icon: any }[]
             ).map((tab) => {
               const isActive = activeTab === tab.key;
@@ -921,7 +921,7 @@ export default function NotesScreen() {
                 testID="notes-add-selected-to-study"
               >
                 <BibleIcon
-                  name="file-plus"
+                  name="feather"
                   color={colors.primary}
                   size={ms(DESIGN.icon.md)}
                 />
@@ -969,13 +969,13 @@ export default function NotesScreen() {
               validNotes.length === 0 ? (
                 <View style={styles.tabEmpty}>
                   <BibleIcon
-                    name="file-text"
+                    name="message-square"
                     size={ms(DESIGN.icon.lg)}
                     color={colors.textMuted}
                   />
                   <BibleText style={styles.tabEmptyText}>
-                    Nenhuma anotação de texto. Selecione versículos na leitura e
-                    toque em Anotar.
+                    Nenhum comentário. Selecione versículos na leitura e toque
+                    em Comentar.
                   </BibleText>
                 </View>
               ) : (
@@ -994,7 +994,7 @@ export default function NotesScreen() {
               drawingGroups.length === 0 ? (
                 <View style={styles.tabEmpty}>
                   <BibleIcon
-                    name="edit-2"
+                    name="pen-tool"
                     size={ms(DESIGN.icon.lg)}
                     color={colors.textMuted}
                   />
@@ -1018,7 +1018,7 @@ export default function NotesScreen() {
             ) : highlightGroups.length === 0 ? (
               <View style={styles.tabEmpty}>
                 <BibleIcon
-                  name="bookmark"
+                  name="droplet"
                   size={ms(DESIGN.icon.lg)}
                   color={colors.textMuted}
                 />

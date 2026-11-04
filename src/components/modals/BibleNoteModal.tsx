@@ -66,7 +66,7 @@ export function BibleNoteModal({
     const versesToSave = selectedVerses.map(({ text: _t, ...rest }) => rest);
     saveNote(versesToSave, text);
     onShowToast?.(
-      text.trim() ? "Anotação salva" : "Anotação removida",
+      text.trim() ? "Comentário salvo" : "Comentário removido",
       "success",
     );
     onClose();
@@ -93,19 +93,30 @@ export function BibleNoteModal({
             }}
           >
             <BibleIcon
-              name="edit-2"
+              name="message-square"
               color={colors.primary}
               backgroundColor={colors.primary + "15"}
             />
-            <BibleText
-              style={{
-                fontWeight: "700",
-                color: colors.onSurface,
-                fontSize: ms(DESIGN.fontSize.lg),
-              }}
-            >
-              Anotações: {headerLabel}
-            </BibleText>
+            <View style={{ flexShrink: 1 }}>
+              <BibleText
+                style={{
+                  fontWeight: "700",
+                  color: colors.onSurface,
+                  fontSize: ms(DESIGN.fontSize.lg),
+                }}
+              >
+                Comentário
+              </BibleText>
+              <BibleText
+                numberOfLines={1}
+                style={{
+                  color: colors.textMuted,
+                  fontSize: ms(DESIGN.fontSize.md),
+                }}
+              >
+                {headerLabel}
+              </BibleText>
+            </View>
           </View>
           <BibleIcon
             name="x"
@@ -127,7 +138,7 @@ export function BibleNoteModal({
           }}
         >
           <BibleText style={{ color: colors.onPrimary, fontWeight: "700" }}>
-            Salvar Anotação
+            Salvar Comentário
           </BibleText>
         </TouchableOpacity>
       }
@@ -151,7 +162,7 @@ export function BibleNoteModal({
               textAlignVertical: "top",
               outlineStyle: "none" as any,
             }}
-            placeholder="Escreva sua anotação aqui..."
+            placeholder="Escreva seu comentário aqui..."
             placeholderTextColor={colors.textMuted}
             multiline
             value={text}

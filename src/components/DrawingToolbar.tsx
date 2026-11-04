@@ -11,6 +11,7 @@ import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { impactLight } from "../utils/haptics";
 import { BibleIcon } from "./BibleIcon";
+import { BibleTooltipButton } from "./BibleTooltipButton";
 import { DrawingColorSlider } from "./DrawingColorSlider";
 import { DrawingWidthSlider } from "./DrawingWidthSlider";
 import { BibleConfirmModal } from "./modals/BibleConfirmModal";
@@ -131,10 +132,13 @@ export const DrawingToolbar = React.memo(
     const secondaryBtn = (
       onPress: () => void,
       testID: string,
+      label: string,
       content: React.ReactNode,
       disabled?: boolean,
     ) => (
-      <TouchableOpacity
+      <BibleTooltipButton
+        tooltip={label}
+        accessibilityLabel={label}
         style={[styles.iconBtn, { backgroundColor: colors.surfaceHighlight }]}
         onPress={() => {
           impactLight();
@@ -144,11 +148,12 @@ export const DrawingToolbar = React.memo(
         testID={testID}
       >
         {content}
-      </TouchableOpacity>
+      </BibleTooltipButton>
     );
 
     const toolButton = (
       icon: "pen" | "marker" | "eraser",
+      label: string,
       isActive: boolean,
       onPress: () => void,
       testID: string,
@@ -156,8 +161,10 @@ export const DrawingToolbar = React.memo(
       const iconColor = isActive ? colors.onPrimary : colors.primary;
       const size = ms(DESIGN.spacing.lg);
       return (
-        <TouchableOpacity
+        <BibleTooltipButton
           testID={testID}
+          tooltip={label}
+          accessibilityLabel={label}
           style={[
             styles.iconBtn,
             {
@@ -184,7 +191,7 @@ export const DrawingToolbar = React.memo(
               color={iconColor}
             />
           )}
-        </TouchableOpacity>
+        </BibleTooltipButton>
       );
     };
 
@@ -242,6 +249,7 @@ export const DrawingToolbar = React.memo(
                   {secondaryBtn(
                     undo,
                     "drawing-undo",
+                    "Desfazer",
                     <BibleIcon
                       name="corner-up-left"
                       size={ms(DESIGN.spacing.lg)}
@@ -252,6 +260,7 @@ export const DrawingToolbar = React.memo(
                   {secondaryBtn(
                     redo,
                     "drawing-redo",
+                    "Refazer",
                     <BibleIcon
                       name="corner-up-right"
                       size={ms(DESIGN.spacing.lg)}
@@ -262,6 +271,7 @@ export const DrawingToolbar = React.memo(
                   {secondaryBtn(
                     () => setIsClearVisible(true),
                     "drawing-clear",
+                    "Limpar desenho",
                     <BibleIcon
                       name="trash-2"
                       size={ms(DESIGN.spacing.lg)}
@@ -277,6 +287,7 @@ export const DrawingToolbar = React.memo(
               {secondaryBtn(
                 handleToggleCollapsed,
                 isCollapsed ? "drawing-expand" : "drawing-collapse",
+                isCollapsed ? "Expandir" : "Recolher",
                 <BibleIcon
                   name={isCollapsed ? "chevron-up" : "chevron-down"}
                   size={ms(DESIGN.spacing.lg)}
@@ -289,11 +300,13 @@ export const DrawingToolbar = React.memo(
                   setIsSliderOpen((prev) => !prev);
                 },
                 "drawing-color",
+                "Cor",
                 <View style={[styles.colorDot, { backgroundColor: color }]} />,
               )}
               {secondaryBtn(
                 handleToggleWidth,
                 "drawing-width",
+                "Espessura",
                 <View
                   style={[
                     styles.widthDot,
@@ -310,26 +323,30 @@ export const DrawingToolbar = React.memo(
               />
               {toolButton(
                 "pen",
+                "Caneta",
                 !isErasing && tool === "pen",
                 () => setTool("pen"),
                 "drawing-pen",
               )}
               {toolButton(
                 "marker",
+                "Marcador",
                 !isErasing && tool === "marker",
                 () => setTool("marker"),
                 "drawing-marker",
               )}
               {toolButton(
                 "eraser",
+                "Borracha",
                 isErasing,
                 () => setIsErasing(true),
                 "drawing-eraser",
               )}
             </View>
-            <TouchableOpacity
+            <BibleTooltipButton
               style={[styles.iconBtn, { backgroundColor: colors.primary }]}
               onPress={onDone}
+              tooltip="Concluir"
               accessibilityLabel="Concluir"
               testID="drawing-done"
             >
@@ -338,7 +355,7 @@ export const DrawingToolbar = React.memo(
                 size={ms(DESIGN.spacing.lg)}
                 color={colors.onPrimary}
               />
-            </TouchableOpacity>
+            </BibleTooltipButton>
           </View>
         </View>
         <BibleConfirmModal

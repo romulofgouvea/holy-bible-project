@@ -33,10 +33,13 @@ import { Book, getBibleData } from "../data/bible-version";
 import bibleBooks from "../data/bible-version/bible-books.json";
 import { useBible } from "../hooks/useBible";
 import { useBibleModals } from "../hooks/useBibleModals";
+import { useNotes } from "../hooks/useNotes";
 import { useReaderSettings } from "../hooks/useReaderSettings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { impactLight, selectionHaptic } from "../utils/haptics";
+import { matchesQuery } from "../utils/notesSearch";
+import { parseBibleReference } from "../utils/bibleReference";
 import { handleSmartBack } from "../utils/navigation";
 
 type Testament = "OT" | "NT" | null;
@@ -288,6 +291,17 @@ export default function SearchScreen() {
         activityIndicator: {
           marginRight: ms(DESIGN.spacing.xs),
         },
+        referenceCard: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: ms(DESIGN.spacing.sm),
+          margin: ms(DESIGN.spacing.md),
+          marginBottom: 0,
+          padding: ms(DESIGN.spacing.md),
+          borderRadius: ms(DESIGN.borderRadius.md),
+          borderWidth: 1,
+        },
+        referenceText: { flex: 1 },
         resultsInfoContainer: {
           flexDirection: "row",
           alignItems: "center",
@@ -442,6 +456,7 @@ export default function SearchScreen() {
   const params = useLocalSearchParams<{ query?: string; from?: string }>();
   const { version, navigateTo } = useBible();
   const { openModal } = useBibleModals();
+  const { notes } = useNotes();
 
   const [query, setQuery] = useState("");
   const [searchVersion, setSearchVersion] = useState(version || "NAA");
@@ -773,14 +788,38 @@ export default function SearchScreen() {
     setSearchTestament(null);
   };
 
+  const reference = useMemo(
+    () => parseBibleReference(query, searchVersionBooks),
+    [query, searchVersionBooks],
+  );
+
+  const handleReferencePress = () => {
+    if (!reference) return;
+    handleNavigate({
+      bookName: reference.book.name,
+      bookAbbrev: reference.book.abbrev,
+      chapter: reference.chapter,
+      verse: reference.verse ?? 1,
+      text: "",
+    });
+  };
+
   const showHistory = query.trim().length === 0 && history.length > 0;
   const showEmpty = query.trim().length === 0 && history.length === 0;
   const showTooShort =
     !isSearching && query.trim().length > 0 && query.trim().length < 2;
-  const showNoResults =
-    !isSearching && query.trim().length >= 2 && results.length === 0;
-  const showResults =
-    !isSearching && query.trim().length >= 2 && results.length > 0;
+  const commentResults = useMemo(
+    () =>
+      query.trim().length >= 2
+        ? notes.filter(
+            (n) => n.selectedVerses?.length && matchesQuery(query, n.text),
+          )
+        : [],
+    [notes, query],
+  );
+  const hasMatches = results.length > 0 || commentResults.length > 0;
+  const showNoResults = !isSearching && query.trim().length >= 2 && !hasMatches;
+  const showResults = !isSearching && query.trim().length >= 2 && hasMatches;
 
   if (!isLoaded || !searchVersionBooks) {
     return <BibleSkeleton />;
@@ -847,6 +886,54 @@ export default function SearchScreen() {
           </View>
         }
       />
+
+      {reference && (
+        <TouchableOpacity
+          style={[
+            styles.referenceCard,
+            {
+              backgroundColor: colors.primary + "15",
+              borderColor: colors.primary,
+            },
+          ]}
+          onPress={handleReferencePress}
+          activeOpacity={0.7}
+        >
+          <BibleIcon
+            name="book-open"
+            color={colors.primary}
+            size={ms(DESIGN.fontSize.xl)}
+            containerSize={DESIGN.fontSize.xl}
+          />
+          <View style={styles.referenceText}>
+            <BibleText
+              style={{
+                color: colors.primary,
+                fontWeight: "700",
+                fontSize: ms(DESIGN.fontSize.lg),
+              }}
+            >
+              {`${reference.book.name} ${reference.chapter}${reference.verse ? `:${reference.verse}` : ""}`}
+            </BibleText>
+            {reference.verse ? (
+              <BibleText
+                numberOfLines={2}
+                style={{
+                  color: colors.textMuted,
+                  fontSize: ms(DESIGN.fontSize.md),
+                }}
+              >
+                {
+                  reference.book.chapters[reference.chapter - 1][
+                    reference.verse - 1
+                  ]
+                }
+              </BibleText>
+            ) : null}
+          </View>
+          <BibleIcon name="chevron-right" color={colors.primary} />
+        </TouchableOpacity>
+      )}
 
       {(showResults || showNoResults) && (
         <View
@@ -989,7 +1076,7 @@ export default function SearchScreen() {
       ) : showNoResults ? (
         <BiblePageEmpty
           title="Sem resultados"
-          description={`Nenhum versículo encontrado com o texto: "${query.trim()}"`}
+          description={`Nenhum versículo ou comentário encontrado com o texto: "${query.trim()}"`}
           icon="slash"
           actionLabel="Limpar Busca"
           onAction={handleClearQuery}
@@ -999,6 +1086,91 @@ export default function SearchScreen() {
           <FlashList
             data={results}
             keyExtractor={(_, i) => String(i)}
+            ListHeaderComponent={
+              commentResults.length > 0 ? (
+                <View style={{ gap: ms(DESIGN.spacing.sm) }}>
+                  <BibleText
+                    style={{
+                      color: colors.textMuted,
+                      fontWeight: "800",
+                      fontSize: ms(DESIGN.fontSize.xs),
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {`Comentários (${commentResults.length})`}
+                  </BibleText>
+                  {commentResults.map((n) => {
+                    const first = n.selectedVerses[0];
+                    const extra = n.selectedVerses.length - 1;
+                    return (
+                      <TouchableOpacity
+                        key={n.id}
+                        style={[
+                          styles.referenceCard,
+                          {
+                            margin: 0,
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                        onPress={() => {
+                          impactLight();
+                          navigateTo({
+                            version: first.version,
+                            book: first.bookAbbrev,
+                            chapter: first.chapter,
+                            verse: first.verse,
+                          });
+                          router.replace({ pathname: ROUTES.BIBLE } as any);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <BibleIcon
+                          name="message-square"
+                          color={colors.primary}
+                          backgroundColor={colors.surfaceHighlight}
+                          containerSize={DESIGN.icon.xl}
+                          borderRadius={DESIGN.borderRadius.md}
+                        />
+                        <View style={styles.referenceText}>
+                          <BibleText
+                            style={{
+                              color: colors.primary,
+                              fontWeight: "700",
+                              fontSize: ms(DESIGN.fontSize.md),
+                            }}
+                          >
+                            {`${first.bookName} ${first.chapter}:${first.verse}${extra > 0 ? ` +${extra}` : ""}`}
+                          </BibleText>
+                          <BibleText
+                            numberOfLines={3}
+                            style={{
+                              color: colors.onSurface,
+                              fontSize: ms(DESIGN.fontSize.md),
+                            }}
+                          >
+                            {n.text}
+                          </BibleText>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {results.length > 0 && (
+                    <BibleText
+                      style={{
+                        color: colors.textMuted,
+                        fontWeight: "800",
+                        fontSize: ms(DESIGN.fontSize.xs),
+                        textTransform: "uppercase",
+                        marginTop: ms(DESIGN.spacing.sm),
+                      }}
+                    >
+                      Versículos
+                    </BibleText>
+                  )}
+                </View>
+              ) : null
+            }
             // @ts-ignore
             estimatedItemSize={ms(DESIGN.layout.listPaddingBottom)}
             showsVerticalScrollIndicator={false}

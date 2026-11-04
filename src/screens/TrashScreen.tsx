@@ -159,7 +159,7 @@ export default function TrashScreen() {
             </TouchableOpacity>
           ) : (
             <BibleIcon
-              name="book-open"
+              name="feather"
               color={colors.primary}
               backgroundColor={colors.primary + "15"}
               containerSize={ms(DESIGN.icon.xl)}

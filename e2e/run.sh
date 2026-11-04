@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # E2E visual/semântico do app (Expo Go via adb). Uso: bash e2e/run.sh [secao...]
-# Seções: bible appearance picker search studies notes plan config draw
+# Seções: bible appearance picker search studies notes plan config draw collections stats
 # Requer: adb com um aparelho conectado, Metro rodando e o app aberto no Expo Go.
 # Dica: ligue "Não perturbe" antes, para banners de outros apps não entrarem nas capturas.
 
@@ -147,6 +147,11 @@ section_search() {
   open_drawer_item "Pesquisar"
   check "titulo pesquisar" "Pesquisar"
   shot search
+  tap_text "Pesquisar" 1 1
+  adb shell input text "Jo%s3:16"
+  wait_a_bit 1.5
+  check "atalho de referencia" "João 3:16"
+  shot search-reference
 }
 
 section_studies() {
@@ -165,7 +170,7 @@ section_notes() {
   echo "== 6. Anotações (abas, busca, seleção, estudo)"
   open_drawer_item "Anotações"
   check "titulo anotacoes" "Anotações"
-  check "aba texto" "Texto"
+  check "aba texto" "Comentários"
   check "aba cores" "Cores"
   check "aba desenhos" "Desenhos"
   check "campo de busca" "Buscar nas anotações"
@@ -174,7 +179,7 @@ section_notes() {
   shot notes-colors
   tap_text "Desenhos" 0 1.5
   shot notes-drawings
-  tap_text "Texto" 0 1
+  tap_text "Comentários" 0 1
   adb shell input swipe 538 880 538 880 900
   wait_a_bit 1
   check "selecao multipla" "selecionada"
@@ -214,6 +219,23 @@ section_config() {
   shot config-bible-section
 }
 
+section_collections() {
+  echo "== 15. Coleções"
+  open_drawer_item "Coleções"
+  check "titulo colecoes" "Coleções"
+  check "estado vazio ou lista" "coleç"
+  shot collections
+}
+
+section_stats() {
+  echo "== 16. Estatísticas"
+  open_drawer_item "Estatísticas"
+  check "titulo estatisticas" "Estatísticas"
+  check "progresso da biblia" "da Bíblia lida"
+  check "sequencia atual" "Sequência atual"
+  shot stats
+}
+
 section_draw() {
   echo "== 9. Desenho na Bíblia (barra, espessura, cores recentes)"
   open_drawer_item "Bíblia"
@@ -237,7 +259,7 @@ section_draw() {
 
 SECTIONS=("$@")
 if [ ${#SECTIONS[@]} -eq 0 ]; then
-  SECTIONS=(bible appearance picker search studies notes plan config draw)
+  SECTIONS=(bible appearance picker search studies notes plan config draw collections stats)
 fi
 
 reload_app

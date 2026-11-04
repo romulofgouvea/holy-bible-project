@@ -207,8 +207,8 @@ const ParagraphRow = React.memo(
                 <BibleText style={{ color: primaryColor, opacity: 0.8 }}>
                   {" "}
                   <BibleIcon
-                    name="edit-3"
-                    size={ms(DESIGN.fontSize.md * fontSizeMultiplier)}
+                    name="message-square"
+                    size={ms(DESIGN.fontSize.lg * fontSizeMultiplier)}
                     color={primaryColor}
                   />
                 </BibleText>
@@ -443,8 +443,8 @@ const VerseRow = React.memo(
                 <BibleText style={{ color: primaryColor, opacity: 0.8 }}>
                   {"\u00A0"}
                   <BibleIcon
-                    name="edit-3"
-                    size={ms(DESIGN.fontSize.md * fontSizeMultiplier)}
+                    name="message-square"
+                    size={ms(DESIGN.fontSize.lg * fontSizeMultiplier)}
                     color={primaryColor}
                   />
                 </BibleText>

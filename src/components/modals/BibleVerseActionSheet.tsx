@@ -1,4 +1,5 @@
 import * as Clipboard from "expo-clipboard";
+import { Feather } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import {
   Animated,
@@ -15,6 +16,8 @@ import { ToastAction } from "../../hooks/useToast";
 import { SelectedVerse } from "../../models";
 import { formatVerseRanges } from "../../utils/verseRange";
 import { BibleIcon } from "../BibleIcon";
+import { BibleTooltipButton } from "../BibleTooltipButton";
+import { BibleAddToCollectionModal } from "./BibleAddToCollectionModal";
 import { BibleAddToStudyModal } from "./BibleAddToStudyModal";
 import { BibleNoteModal } from "./BibleNoteModal";
 
@@ -101,6 +104,8 @@ export function BibleVerseActionSheet(props: VerseActionSheetProps) {
   const translateY = React.useRef(new Animated.Value(hiddenY)).current;
   const [studyModalVisible, setStudyModalVisible] = React.useState(false);
   const [noteModalVisible, setNoteModalVisible] = React.useState(false);
+  const [collectionModalVisible, setCollectionModalVisible] =
+    React.useState(false);
 
   React.useEffect(() => {
     Animated.spring(translateY, {
@@ -217,107 +222,58 @@ export function BibleVerseActionSheet(props: VerseActionSheetProps) {
       >
         <View style={styles.topRowContainer}>
           <View style={styles.topRow}>
-            <TouchableOpacity
-              style={[
-                styles.iconBtn,
-                {
-                  backgroundColor:
-                    count === 0
-                      ? colors.surfaceHighlight
-                      : colors.primary + "25",
-                },
-              ]}
-              onPress={onShare}
-              disabled={count === 0}
-            >
-              <BibleIcon
-                name="share-2"
-                size={ms(DESIGN.spacing.lg)}
-                color={count === 0 ? colors.textMuted : colors.primary}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.iconBtn,
-                {
-                  backgroundColor:
-                    count === 0
-                      ? colors.surfaceHighlight
-                      : colors.primary + "25",
-                },
-              ]}
-              onPress={onCopy}
-              disabled={count === 0}
-            >
-              <BibleIcon
-                name="copy"
-                size={ms(DESIGN.spacing.lg)}
-                color={count === 0 ? colors.textMuted : colors.primary}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.iconBtn,
-                {
-                  backgroundColor:
-                    count === 0
-                      ? colors.surfaceHighlight
-                      : colors.primary + "25",
-                },
-              ]}
-              onPress={() => setStudyModalVisible(true)}
-              disabled={count === 0}
-            >
-              <BibleIcon
-                name="book-open"
-                size={ms(DESIGN.spacing.lg)}
-                color={count === 0 ? colors.textMuted : colors.primary}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.iconBtn,
-                {
-                  backgroundColor:
-                    count === 0
-                      ? colors.surfaceHighlight
-                      : colors.primary + "25",
-                },
-              ]}
-              onPress={() => setNoteModalVisible(true)}
-              disabled={count === 0}
-            >
-              <BibleIcon
-                name="edit-2"
-                size={ms(DESIGN.spacing.lg)}
-                color={count === 0 ? colors.textMuted : colors.primary}
-              />
-            </TouchableOpacity>
-
-            {onDraw && (
-              <TouchableOpacity
-                style={[
-                  styles.iconBtn,
-                  {
-                    backgroundColor:
-                      count === 0
-                        ? colors.surfaceHighlight
-                        : colors.primary + "25",
-                  },
-                ]}
-                onPress={() => onDraw(selectedVerses)}
-                disabled={count === 0}
-              >
-                <BibleIcon
-                  name="pen-tool"
-                  size={ms(DESIGN.spacing.lg)}
-                  color={count === 0 ? colors.textMuted : colors.primary}
-                />
-              </TouchableOpacity>
-            )}
+            {[
+              { icon: "share-2", label: "Compartilhar", onPress: onShare },
+              { icon: "copy", label: "Copiar", onPress: onCopy },
+              {
+                icon: "feather",
+                label: "Adicionar ao estudo",
+                onPress: () => setStudyModalVisible(true),
+              },
+              {
+                icon: "bookmark",
+                label: "Adicionar à coleção",
+                onPress: () => setCollectionModalVisible(true),
+              },
+              {
+                icon: "message-square",
+                label: "Comentar",
+                onPress: () => setNoteModalVisible(true),
+              },
+              ...(onDraw
+                ? [
+                    {
+                      icon: "pen-tool",
+                      label: "Desenhar",
+                      onPress: () => onDraw(selectedVerses),
+                    },
+                  ]
+                : []),
+            ].map((action, index) => (
+              <View key={action.icon}>
+                <BibleTooltipButton
+                  tooltip={action.label}
+                  style={[
+                    styles.iconBtn,
+                    {
+                      backgroundColor:
+                        count === 0
+                          ? colors.surfaceHighlight
+                          : colors.primary + "25",
+                    },
+                  ]}
+                  onPress={action.onPress}
+                  disabled={count === 0}
+                  accessibilityLabel={action.label}
+                >
+                  <BibleIcon
+                    name={action.icon as keyof typeof Feather.glyphMap}
+                    size={ms(DESIGN.spacing.lg)}
+                    color={count === 0 ? colors.textMuted : colors.primary}
+                  />
+                </BibleTooltipButton>
+              </View>
+            ))}
           </View>
 
           <BibleIcon
@@ -378,6 +334,17 @@ export function BibleVerseActionSheet(props: VerseActionSheetProps) {
           onClose();
         }}
         onDismiss={() => setStudyModalVisible(false)}
+        selectedVerses={selectedVerses}
+        onShowToast={props.onShowToast}
+      />
+
+      <BibleAddToCollectionModal
+        visible={collectionModalVisible}
+        onClose={() => {
+          setCollectionModalVisible(false);
+          onClose();
+        }}
+        onDismiss={() => setCollectionModalVisible(false)}
         selectedVerses={selectedVerses}
         onShowToast={props.onShowToast}
       />

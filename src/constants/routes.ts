@@ -19,6 +19,8 @@ export const ROUTES = {
   STUDY_EDITOR: (id: string) => `/studies/study/${id}` as const,
   READING_PLAN: "/reading-plan",
   NOTES: "/notes",
+  COLLECTIONS: "/collections",
+  STATS: "/stats",
 } as const;
 
 export const ROUTE_LABELS: Record<string, string> = {
@@ -27,6 +29,8 @@ export const ROUTE_LABELS: Record<string, string> = {
   [ROUTES.STUDIES]: "Estudos",
   [ROUTES.SEARCH]: "Pesquisar",
   [ROUTES.NOTES]: "Anotações",
+  [ROUTES.COLLECTIONS]: "Coleções",
+  [ROUTES.STATS]: "Estatísticas",
   [ROUTES.CONFIGURATION]: "Configurações",
   [ROUTES.TRASH]: "Gerenciar estudos excluídos",
   [ROUTES.DOWNLOADS]: "Downloads",
@@ -50,7 +54,7 @@ export const DRAWER_ITEMS: {
   {
     key: "studies",
     label: ROUTE_LABELS[ROUTES.STUDIES],
-    icon: "edit-3",
+    icon: "feather",
     route: ROUTES.STUDIES,
   },
   {
@@ -66,10 +70,22 @@ export const DRAWER_ITEMS: {
     route: ROUTES.NOTES,
   },
   {
+    key: "collections",
+    label: ROUTE_LABELS[ROUTES.COLLECTIONS],
+    icon: "bookmark",
+    route: ROUTES.COLLECTIONS,
+  },
+  {
     key: "reading-plan",
     label: ROUTE_LABELS[ROUTES.READING_PLAN],
     icon: "calendar",
     route: ROUTES.READING_PLAN,
+  },
+  {
+    key: "stats",
+    label: ROUTE_LABELS[ROUTES.STATS],
+    icon: "bar-chart-2",
+    route: ROUTES.STATS,
   },
   {
     key: "configuration",

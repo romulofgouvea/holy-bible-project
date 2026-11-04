@@ -58,6 +58,14 @@ export interface VerseNote {
   updatedAt: number;
 }
 
+export interface VerseCollection {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  verses: VerseReference[];
+}
+
 export type SelectedVerse = VerseReference & {
   text: string;
   compareText?: string;

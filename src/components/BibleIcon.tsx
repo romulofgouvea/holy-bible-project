@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useMemo } from "react";
-import { StyleSheet, TouchableOpacity, View, ViewStyle } from "react-native";
+import { StyleSheet, View, ViewStyle } from "react-native";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
+import { BibleTooltipButton } from "./BibleTooltipButton";
 
 export type BibleIconProps = {
   name: keyof typeof Feather.glyphMap;
@@ -34,6 +35,22 @@ const ICON_LABELS: Partial<Record<keyof typeof Feather.glyphMap, string>> = {
   type: "Aparência",
   clock: "Histórico",
   "arrow-up": "Voltar ao topo",
+  "more-horizontal": "Mais opções",
+  settings: "Configurações",
+  filter: "Filtros",
+  headphones: "Áudio",
+  "share-2": "Compartilhar",
+  copy: "Copiar",
+  "corner-up-left": "Desfazer",
+  "corner-up-right": "Refazer",
+  "rotate-cw": "Refazer",
+  "edit-2": "Editar",
+  "edit-3": "Editar",
+  "file-plus": "Novo",
+  "pen-tool": "Desenhar",
+  "play-circle": "Reproduzir",
+  "arrow-right": "Avançar",
+  "check-circle": "Concluir",
 };
 
 const MIN_TOUCH_SIZE = 48;
@@ -64,7 +81,8 @@ export function BibleIcon({
     [ms, colors, DESIGN],
   );
 
-  const Container = onPress ? TouchableOpacity : View;
+  const Container = onPress ? BibleTooltipButton : View;
+  const label = accessibilityLabel ?? ICON_LABELS[name];
 
   const finalContainerSize = ms(containerSize);
   const finalIconSize = size || ms(containerSize * 0.5);
@@ -76,7 +94,8 @@ export function BibleIcon({
       onPress={onPress}
       {...(onPress && {
         accessibilityRole: "button" as const,
-        accessibilityLabel: accessibilityLabel ?? ICON_LABELS[name],
+        accessibilityLabel: label,
+        tooltip: label,
         hitSlop: {
           top: hitSlopSize,
           bottom: hitSlopSize,

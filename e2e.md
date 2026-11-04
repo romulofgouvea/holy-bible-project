@@ -31,12 +31,16 @@ bash e2e/run.sh notes plan        # roda só algumas seções
 | 6 | Pesquisar | menu lateral > Pesquisar (`/search`) | `screens/SearchScreen.tsx` |
 | 7 | Estudos (lista) | menu lateral > Estudos (`/studies`) | `screens/StudiesScreen.tsx` |
 | 8 | Editor de estudo | tocar em um estudo (`/studies/study/[id]`) | `screens/StudyEditorScreen.tsx` |
-| 9 | Anotações: Texto / Cores / Desenhos | menu lateral > Anotações (`/notes`) | `screens/NotesScreen.tsx` |
+| 9 | Anotações: Comentários / Cores / Desenhos | menu lateral > Anotações (`/notes`) | `screens/NotesScreen.tsx` |
 | 10 | Plano de leitura (lista e detalhe) | menu lateral > Plano de Leitura (`/reading-plan`) | `screens/ReadingPlanScreen.tsx` |
 | 11 | Configurações | menu lateral > Configurações (`/configuration`) | `screens/ConfigurationScreen.tsx` |
 | 12 | Lixeira de estudos | Configurações > Gerenciar estudos excluídos | `screens/TrashScreen.tsx` |
 | 13 | Downloads de áudio (e por versão) | Configurações > Downloads de Áudio | `screens/DownloadsScreen.tsx`, `DownloadsBooksScreen.tsx` |
 | 14 | Novidades (changelog) | Configurações > versão do app | `components/modals/BibleChangelogModal.tsx` |
+| 15 | Coleções (lista, detalhe, nova coleção) | menu lateral > Coleções (`/collections`) | `screens/CollectionsScreen.tsx` |
+| 16 | Estatísticas de leitura | menu lateral > Estatísticas (`/stats`) | `screens/StatsScreen.tsx` |
+| 17 | Adicionar à coleção | versículo selecionado > ícone de marcador | `components/modals/BibleAddToCollectionModal.tsx` |
+| 18 | Widget "Versículo do dia" (Android) | tela inicial do aparelho > widgets > Bíblia Online | `widgets/DailyVerseWidget.tsx` |
 
 ## Ordem do teste
 
@@ -57,6 +61,7 @@ Cada passo tem o resultado esperado. A coluna **Auto** indica o que `e2e/run.sh`
 
 ### 4. Pesquisar (`section_search`) — Auto
 Título "Pesquisar", campo de busca e filtros.
+Digitar uma referência ("Jo 3:16", "Sl 23", "1 joao 1.5") mostra um card "João 3:16" acima dos resultados; tocar abre a Bíblia no versículo.
 
 ### 5. Estudos (`section_studies`) — Auto (abrir) + Manual
 Auto: lista "Estudos", abrir o estudo "Dd", editor com a barra de ferramentas.
@@ -70,7 +75,7 @@ Manual, bloco **desenhar pelo estudo** (validado em 03/11):
 4. Aparece "Salvando desenho no estudo...", o app volta ao estudo e há um novo bloco "Jude 1:2-3 (ESV)" com a imagem (arquivo `study-images/*.jpg`) e o traço. Reabrir o estudo: a imagem continua lá.
 
 ### 6. Anotações (`section_notes`) — Auto
-1. Abas **Texto**, **Cores**, **Desenhos** e o campo "Buscar nas anotações".
+1. Abas **Comentários**, **Cores**, **Desenhos** e o campo "Buscar nas anotações".
 2. Busca sem acento e sem diferenciar maiúsculas (ex.: `JUMENTO` acha "jumento").
 3. Segurar um card (538, 880): barra "1 selecionada" + **Adicionar ao estudo**.
 4. **Adicionar ao estudo** > **Criar Novo Estudo**: título já sugerido (ex.: "Êxodo 23:5"). Cancelar para não criar estudo de teste.
@@ -129,3 +134,9 @@ Ajustes no roteiro: `ui()` usa `MSYS_NO_PATHCONV` também no `cat` (sem isso o G
 
 Conferido à mão no aparelho: Aparência (slider de tamanho e de brilho sem rolar a lista, Restaurar tudo, tema Preto, Lora), modo sem distração (barra de localização fica, progresso some, setas só no fim), barras vertical de cor e espessura salvando ao soltar o dedo fora da barra, modais de versão, livro, capítulo, histórico, comparar versão (vertical, horizontal, trocar, fechar), nota e adicionar ao estudo.
 Achado: no layout horizontal da comparação os chips NAA/ESV cobrem o início do título do capítulo.
+
+### 04/11/2026 — Coleções, referência na busca, estatísticas e widget (não executada)
+
+Implementado sem rodar no aparelho: seções `collections` e `stats` e o atalho de referência em `search` foram adicionados ao `e2e/run.sh`, mas ainda não executados.
+Manual pendente: criar coleção pelo ícone de marcador na leitura e conferir no menu Coleções; abrir um versículo da coleção; conferir os números em Estatísticas após marcar um capítulo no plano.
+O widget só existe depois de `npx expo prebuild --platform android` e novo build nativo (não funciona no Expo Go): adicionar "Versículo do dia" na tela inicial e tocar nele para abrir o versículo.

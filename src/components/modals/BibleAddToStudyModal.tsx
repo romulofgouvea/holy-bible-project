@@ -243,7 +243,7 @@ export function BibleAddToStudyModal({
     >
       <View style={styles.studyItemContent}>
         <BibleIcon
-          name="book-open"
+          name="feather"
           color={colors.primary}
           backgroundColor={colors.primary + "20"}
         />
@@ -284,7 +284,7 @@ export function BibleAddToStudyModal({
       header={
         <View style={styles.header}>
           <BibleIcon
-            name={isCreating ? "arrow-left" : "file-plus"}
+            name={isCreating ? "arrow-left" : "feather"}
             size={ms(DESIGN.spacing.lg)}
             color={colors.primary}
             backgroundColor={colors.primary + "25"}
@@ -388,7 +388,7 @@ export function BibleAddToStudyModal({
             <BiblePageEmpty
               title="Nenhum estudo ainda"
               description="Você ainda não tem estudos para adicionar os versículos selecionados."
-              icon="book"
+              icon="feather"
             />
           ) : (
             <View>{studies.map(renderStudyItem)}</View>
@@ -406,7 +406,7 @@ export function BibleAddToStudyModal({
                 <BiblePageEmpty
                   title="Nenhum estudo ainda"
                   description="Você ainda não tem estudos para adicionar os versículos selecionados."
-                  icon="book"
+                  icon="feather"
                 />
               }
               renderItem={({ item }) => renderStudyItem(item)}
