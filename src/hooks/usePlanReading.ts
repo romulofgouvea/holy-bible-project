@@ -4,6 +4,7 @@ import { BIBLE_PLAN_TEMPLATES } from "../data/bible-plan/biblePlanRegistry";
 import {
   findNextPlanReading,
   getDayChapters,
+  getPlanStartVerse,
   NextPlanReading,
 } from "../utils/planReading";
 import {
@@ -118,9 +119,13 @@ export function usePlanReading() {
       if (target.isNewDay) {
         startPlanReading(planId, target.monthNumber, target.day.day);
       }
-      const verse = getPlanPosition(
-        target.chapter.abbrev,
-        target.chapter.chapter,
+      const verse = Math.max(
+        getPlanPosition(target.chapter.abbrev, target.chapter.chapter),
+        getPlanStartVerse(
+          target.day,
+          target.chapter.abbrev,
+          target.chapter.chapter,
+        ),
       );
       navigateTo({
         book: target.chapter.abbrev,

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { DeviceEventEmitter } from "react-native";
 import { BIBLE_PLAN_TEMPLATES } from "../data/bible-plan/biblePlanRegistry";
-import { findResumeReading } from "../utils/planReading";
+import { findResumeReading, getPlanStartVerse } from "../utils/planReading";
 import { getPlanPosition } from "../utils/planReadingPositions";
 import { useBible } from "./useBible";
 import { useBiblePlan } from "./useBiblePlan";
@@ -49,9 +49,13 @@ export function usePlanResume() {
   const start = useCallback(() => {
     if (!resume) return;
     startPlanReading(resume.planId, resume.monthNumber, resume.day.day);
-    const verse = getPlanPosition(
-      resume.chapter.abbrev,
-      resume.chapter.chapter,
+    const verse = Math.max(
+      getPlanPosition(resume.chapter.abbrev, resume.chapter.chapter),
+      getPlanStartVerse(
+        resume.day,
+        resume.chapter.abbrev,
+        resume.chapter.chapter,
+      ),
     );
     navigateTo({
       book: resume.chapter.abbrev,

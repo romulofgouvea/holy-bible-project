@@ -34,6 +34,7 @@ import { useBible } from "../hooks/useBible";
 import { impactMedium } from "../utils/haptics";
 import {
   getCompletionTimes,
+  getPlanStartVerse,
   getReadingStreak,
   STREAK_MILESTONES,
 } from "../utils/planReading";
@@ -437,7 +438,10 @@ export default function ReadingPlanScreen() {
       navigateTo({
         book: bookAbbrev,
         chapter,
-        verse: getPlanPosition(bookAbbrev, chapter),
+        verse: Math.max(
+          getPlanPosition(bookAbbrev, chapter),
+          getPlanStartVerse(day, bookAbbrev, chapter),
+        ),
       });
       router.navigate(ROUTES.BIBLE as any);
     },

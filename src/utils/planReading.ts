@@ -28,6 +28,15 @@ export const getDayChapters = (day: BiblePlanDay): PlanChapter[] =>
     }));
   });
 
+export const getPlanStartVerse = (
+  day: BiblePlanDay,
+  abbrev: string,
+  chapter: number,
+): number =>
+  day.books
+    .find((b) => b.abbrev === abbrev)
+    ?.verses?.find((v) => v.chapter === chapter)?.startVerse ?? 1;
+
 export const findNextPlanReading = (
   template: BiblePlanTemplate,
   monthNumber: number,

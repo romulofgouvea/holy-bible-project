@@ -99,7 +99,10 @@ if (!(Test-Path $sdkPath)) {
 $env:ANDROID_HOME = $sdkPath
 $localProps = Join-Path $PROJECT_PATH "android" "local.properties"
 $sdkPathEscaped = $sdkPath.Replace('\', '/')
-"sdk.dir=$sdkPathEscaped" | Set-Content $localProps -Encoding UTF8
+$cmakeDir = Join-Path $sdkPath "cmake" "4.1.2"
+$localPropsLines = @("sdk.dir=$sdkPathEscaped")
+if (Test-Path $cmakeDir) { $localPropsLines += "cmake.dir=$($cmakeDir.Replace('\', '/'))" }
+$localPropsLines | Set-Content $localProps -Encoding UTF8
 
 $KEYSTORE_FULL = Join-Path $PROJECT_PATH "android" "app" $KEYSTORE_FILE
 
