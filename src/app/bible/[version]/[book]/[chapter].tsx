@@ -11,12 +11,17 @@ function stripAccents(s: string) {
     .toLowerCase();
 }
 
-function findBookBySlug(books: { abbrev: string; name: string }[], slug: string) {
+function findBookBySlug(
+  books: { abbrev: string; name: string }[],
+  slug: string,
+) {
   const slugLower = slug.toLowerCase();
   const slugStripped = stripAccents(slug);
   const byAbbrevExact = books.find((b) => b.abbrev.toLowerCase() === slugLower);
   if (byAbbrevExact) return byAbbrevExact;
-  const byAbbrevStripped = books.find((b) => stripAccents(b.abbrev) === slugStripped);
+  const byAbbrevStripped = books.find(
+    (b) => stripAccents(b.abbrev) === slugStripped,
+  );
   if (byAbbrevStripped) return byAbbrevStripped;
   const byName = books.find((b) => stripAccents(b.name) === slugStripped);
   if (byName) return byName;
@@ -37,7 +42,7 @@ export default function BibleChapterRoute() {
   // Sync initial URL to Bible state
   useEffect(() => {
     if (!isReady || hasNavigatedInitial.current) return;
-    
+
     if (params.version && params.book && params.chapter) {
       const v = params.version.toUpperCase();
       const ch = Number(params.chapter) || 1;
@@ -47,7 +52,11 @@ export default function BibleChapterRoute() {
       const abbrev = bookObj?.abbrev || params.book;
 
       // If the URL differs from the loaded state, navigate to it
-      if (v !== version || abbrev.toLowerCase() !== book.toLowerCase() || ch !== chapter) {
+      if (
+        v !== version ||
+        abbrev.toLowerCase() !== book.toLowerCase() ||
+        ch !== chapter
+      ) {
         navigateTo({ version: v, book: abbrev, chapter: ch, verse: ve });
       }
     }
@@ -57,7 +66,7 @@ export default function BibleChapterRoute() {
   // Sync Bible state to URL
   useEffect(() => {
     if (!isReady || !hasNavigatedInitial.current) return;
-    
+
     // Only update if it actually differs to avoid loop
     const currentUrlV = params.version?.toLowerCase();
     const currentUrlB = params.book?.toLowerCase();
@@ -67,7 +76,11 @@ export default function BibleChapterRoute() {
     const stateB = book.toLowerCase();
     const stateC = String(chapter);
 
-    if (currentUrlV !== stateV || currentUrlB !== stateB || currentUrlC !== stateC) {
+    if (
+      currentUrlV !== stateV ||
+      currentUrlB !== stateB ||
+      currentUrlC !== stateC
+    ) {
       router.setParams({
         version: stateV,
         book: stateB,

@@ -15,7 +15,6 @@ import { BibleText } from "../BibleText";
 import { HorizontalSlider } from "../HorizontalSlider";
 import { BiblePageModal } from "./BiblePageModal";
 
-const DIVIDER_COLOR = "rgba(0,0,0,0.05)";
 const PREVIEW_TEXT = "No princípio, Deus criou os céus e a terra.";
 const DEFAULT_BRIGHTNESS = 0.5;
 
@@ -141,6 +140,21 @@ export function ReaderSettingsModal({
     [setReaderBrightness],
   );
 
+  const handleResetAll = () => {
+    selectionHaptic();
+    handleSetTheme("light");
+    setFontSizeMultiplier(1);
+    setLineSpacing("md");
+    setTextAlign("left");
+    setReaderFont("poppins");
+    setShouldShowTitles(true);
+    setShouldShowVerseNumbers(true);
+    setShowDrawings(true);
+    setIsFocusMode(false);
+    setIsKeepAwake(false);
+    setReaderBrightness(null);
+  };
+
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -236,6 +250,19 @@ export function ReaderSettingsModal({
           fontSize: ms(DESIGN.fontSize.md),
           fontWeight: "700",
         },
+        resetAll: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: ms(DESIGN.spacing.sm),
+          height: ms(DESIGN.height.md),
+          borderRadius: ms(DESIGN.borderRadius.md),
+          borderWidth: 1,
+        },
+        resetAllText: {
+          fontSize: ms(DESIGN.fontSize.md),
+          fontWeight: "700",
+        },
         segmentBtn: {
           flex: 1,
           height: "100%",
@@ -308,7 +335,7 @@ export function ReaderSettingsModal({
               )}
             </TouchableOpacity>
             {next && !isSelected && selected !== next.value && (
-              <BibleDivider vertical height="60%" color={DIVIDER_COLOR} />
+              <BibleDivider vertical height="60%" color={colors.border} />
             )}
           </React.Fragment>
         );
@@ -327,7 +354,7 @@ export function ReaderSettingsModal({
       <BibleText style={[styles.switchLabel, { color: colors.onBackground }]}>
         {label}
       </BibleText>
-      <BibleSwitch value={value} onValueChange={onValueChange} />
+      <BibleSwitch value={value} onValueChange={onValueChange} label={label} />
     </View>
   );
 
@@ -449,6 +476,8 @@ export function ReaderSettingsModal({
                     onPreview={setPreviewSize}
                     onComplete={handleSizeComplete}
                     onDragChange={handleDragChange}
+                    markValue={1}
+                    label="Tamanho da fonte"
                     testID="reader-size-slider"
                   />
                 </View>
@@ -526,6 +555,7 @@ export function ReaderSettingsModal({
                     onPreview={setPreviewBrightness}
                     onComplete={handleBrightnessComplete}
                     onDragChange={handleDragChange}
+                    label="Brilho"
                     testID="reader-brightness-slider"
                   />
                 </View>
@@ -537,6 +567,22 @@ export function ReaderSettingsModal({
               </View>
             )}
           </View>
+
+          <TouchableOpacity
+            onPress={handleResetAll}
+            style={[styles.resetAll, { borderColor: colors.border }]}
+            accessibilityRole="button"
+            testID="reader-reset-all"
+          >
+            <BibleIcon
+              name="rotate-ccw"
+              size={ms(DESIGN.fontSize.lg)}
+              color={colors.primary}
+            />
+            <BibleText style={[styles.resetAllText, { color: colors.primary }]}>
+              Restaurar tudo
+            </BibleText>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </BiblePageModal>

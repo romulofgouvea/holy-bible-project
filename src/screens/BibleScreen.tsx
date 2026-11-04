@@ -59,7 +59,10 @@ import { useAudioSettings } from "../hooks/useAudioSettings";
 import { useBible } from "../hooks/useBible";
 import { useBibleModals } from "../hooks/useBibleModals";
 import { useNotes } from "../hooks/useNotes";
-import { useReaderSettings } from "../hooks/useReaderSettings";
+import {
+  useReaderScreenEffects,
+  useReaderSettings,
+} from "../hooks/useReaderSettings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { useToast } from "../hooks/useToast";
@@ -130,6 +133,7 @@ export default function BibleScreen() {
   const [footerSeenKey, setFooterSeenKey] = useState<string | null>(null);
   const { colors } = useTheme();
   const { readerTheme, readerColors, isFocusMode } = useReaderSettings();
+  useReaderScreenEffects();
   const primaryColor =
     readerTheme === "sepia" ? readerColors.primary : colors.primary;
 
@@ -285,6 +289,32 @@ export default function BibleScreen() {
     scrollOffsetRef.current = next;
     sectionListRef.current?.scrollToOffset({ offset: next, animated: false });
   }, []);
+
+  const contentHeightRef = useRef(0);
+  const layoutHeightRef = useRef(0);
+
+  const showNavIfContentFits = useCallback(() => {
+    const content = contentHeightRef.current;
+    const layout = layoutHeightRef.current;
+    if (!isFocusMode || content <= 0 || layout <= 0) return;
+    if (content <= layout + ms(DESIGN.spacing.xl)) setNavVisible(true);
+  }, [isFocusMode, ms, DESIGN, setNavVisible]);
+
+  const handleContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      contentHeightRef.current = height;
+      showNavIfContentFits();
+    },
+    [showNavIfContentFits],
+  );
+
+  const handleReaderLayout = useCallback(
+    (event: any) => {
+      layoutHeightRef.current = event.nativeEvent.layout.height;
+      showNavIfContentFits();
+    },
+    [showNavIfContentFits],
+  );
 
   const handleReaderScroll = useCallback(
     (event: any) => {
@@ -643,6 +673,11 @@ export default function BibleScreen() {
     controlGroupAnim.setValue(0);
   }, [controlGroupAnim, setSplitOrientation]);
 
+  const handleCloseSplit = useCallback(() => {
+    setIsSplitScreen(false);
+    show(`Comparação encerrada. Lendo em ${version.toUpperCase()}`, "info");
+  }, [setIsSplitScreen, show, version]);
+
   const handleSwapVersions = useCallback(() => {
     const tempMain = version;
     setVersion(secondVersion);
@@ -967,7 +1002,7 @@ export default function BibleScreen() {
         isSplitScreen={isSplitScreen}
         onToggleCompare={() => {
           if (isSplitScreen) {
-            setIsSplitScreen(false);
+            handleCloseSplit();
           } else {
             setIsActionSheetVisible(false);
             setSelectedVerses([]);
@@ -1199,7 +1234,7 @@ export default function BibleScreen() {
                             backgroundColor: (colors.error || "#FF4D4D") + "1F",
                           },
                         ]}
-                        onPress={() => setIsSplitScreen(false)}
+                        onPress={handleCloseSplit}
                         hitSlop={{
                           top: DESIGN.spacing.sm,
                           bottom: DESIGN.spacing.sm,
@@ -1404,7 +1439,7 @@ export default function BibleScreen() {
                             backgroundColor: (colors.error || "#FF4D4D") + "1F",
                           },
                         ]}
-                        onPress={() => setIsSplitScreen(false)}
+                        onPress={handleCloseSplit}
                         hitSlop={{
                           top: DESIGN.spacing.sm,
                           bottom: DESIGN.spacing.sm,
@@ -1525,6 +1560,8 @@ export default function BibleScreen() {
                 onVersePress={onVersePress}
                 onVerseLongPress={onVerseLongPress}
                 onScroll={handleReaderScroll}
+                onContentSizeChange={handleContentSizeChange}
+                onLayout={handleReaderLayout}
                 scrollEventThrottle={16}
                 onViewableItemsChanged={handleFirstViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}

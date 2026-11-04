@@ -22,9 +22,12 @@ import { BiblePageEmpty } from "../BiblePageEmpty";
 import { BibleText } from "../BibleText";
 import { BiblePageModal } from "./BiblePageModal";
 
+const COMPACT_STUDIES_LIMIT = 4;
+
 type BibleAddToStudyModalProps = {
   visible: boolean;
   onClose: () => void;
+  onDismiss?: () => void;
   selectedVerses: SelectedVerse[];
   customHtml?: string;
   suggestedTitle?: string;
@@ -41,11 +44,13 @@ const STORAGE_FULL_MESSAGE =
 export function BibleAddToStudyModal({
   visible,
   onClose,
+  onDismiss,
   selectedVerses,
   customHtml,
   suggestedTitle,
   onShowToast,
 }: BibleAddToStudyModalProps) {
+  const handleDismiss = onDismiss ?? onClose;
   const router = useRouter();
   const { studies, appendToStudy, createStudy, reloadFromStorage } =
     useStudies();
@@ -221,11 +226,61 @@ export function BibleAddToStudyModal({
     onClose();
   };
 
+  const isCompact = studies.length <= COMPACT_STUDIES_LIMIT;
+
+  const renderStudyItem = (item: (typeof studies)[number]) => (
+    <TouchableOpacity
+      key={item.id}
+      style={[
+        styles.studyItem,
+        {
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+        },
+      ]}
+      onPress={() => handleAddToStudy(item.id)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.studyItemContent}>
+        <BibleIcon
+          name="book-open"
+          color={colors.primary}
+          backgroundColor={colors.primary + "20"}
+        />
+        <View style={{ flex: 1, gap: ms(DESIGN.spacing.xs) }}>
+          <BibleText
+            style={{
+              color: colors.onSurface,
+              fontWeight: "600",
+              fontSize: ms(DESIGN.fontSize.lg),
+            }}
+            numberOfLines={1}
+          >
+            {item.title}
+          </BibleText>
+          <BibleText
+            style={{
+              color: colors.textMuted,
+              fontSize: ms(DESIGN.fontSize.md),
+            }}
+          >
+            {item.createdAt}
+          </BibleText>
+        </View>
+        <BibleIcon
+          name="chevron-right"
+          color={colors.textMuted}
+          size={ms(DESIGN.fontSize.xl)}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <BiblePageModal
       visible={visible}
-      onClose={onClose}
-      fullHeight={!isCreating}
+      onClose={handleDismiss}
+      fullHeight={!isCreating && !isCompact}
       header={
         <View style={styles.header}>
           <BibleIcon
@@ -252,7 +307,7 @@ export function BibleAddToStudyModal({
             name="x"
             color={colors.error}
             backgroundColor={colors.error + "20"}
-            onPress={onClose}
+            onPress={handleDismiss}
             style={{ marginLeft: "auto" }}
           />
         </View>
@@ -296,7 +351,7 @@ export function BibleAddToStudyModal({
     >
       <View
         style={[
-          isCreating ? undefined : styles.container,
+          isCreating || isCompact ? undefined : styles.container,
           { padding: ms(DESIGN.spacing.lg) },
         ]}
       >
@@ -328,6 +383,16 @@ export function BibleAddToStudyModal({
               underlineColorAndroid="transparent"
             />
           </ScrollView>
+        ) : isCompact ? (
+          studies.length === 0 ? (
+            <BiblePageEmpty
+              title="Nenhum estudo ainda"
+              description="Você ainda não tem estudos para adicionar os versículos selecionados."
+              icon="book"
+            />
+          ) : (
+            <View>{studies.map(renderStudyItem)}</View>
+          )
         ) : (
           <View style={{ flex: 1 }}>
             <FlashList
@@ -344,52 +409,7 @@ export function BibleAddToStudyModal({
                   icon="book"
                 />
               }
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.studyItem,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.surface,
-                    },
-                  ]}
-                  onPress={() => handleAddToStudy(item.id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.studyItemContent}>
-                    <BibleIcon
-                      name="book-open"
-                      color={colors.primary}
-                      backgroundColor={colors.primary + "20"}
-                    />
-                    <View style={{ flex: 1, gap: ms(DESIGN.spacing.xs) }}>
-                      <BibleText
-                        style={{
-                          color: colors.onSurface,
-                          fontWeight: "600",
-                          fontSize: ms(DESIGN.fontSize.lg),
-                        }}
-                        numberOfLines={1}
-                      >
-                        {item.title}
-                      </BibleText>
-                      <BibleText
-                        style={{
-                          color: colors.textMuted,
-                          fontSize: ms(DESIGN.fontSize.md),
-                        }}
-                      >
-                        {item.createdAt}
-                      </BibleText>
-                    </View>
-                    <BibleIcon
-                      name="chevron-right"
-                      color={colors.textMuted}
-                      size={ms(DESIGN.fontSize.xl)}
-                    />
-                  </View>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => renderStudyItem(item)}
             />
           </View>
         )}

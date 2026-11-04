@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { useFocusEffect } from "expo-router";
 import { Lora_400Regular } from "@expo-google-fonts/lora";
 import * as Brightness from "expo-brightness";
 import { useFonts } from "expo-font";
@@ -215,20 +216,6 @@ export const ReaderSettingsProvider = ({
     } catch (e) {}
   }, []);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (isKeepAwake) activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
-    else deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
-  }, [isKeepAwake, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (readerBrightness !== null)
-      Brightness.setBrightnessAsync(readerBrightness).catch(() => {});
-    else if (Platform.OS === "android")
-      Brightness.restoreSystemBrightnessAsync().catch(() => {});
-  }, [readerBrightness, isLoaded]);
-
   const setIsSpellcheckEnabled = useCallback(async (val: boolean) => {
     setIsSpellcheckEnabledState(val);
     try {
@@ -319,3 +306,28 @@ export const ReaderSettingsProvider = ({
 };
 
 export const useReaderSettings = () => useContext(ReaderSettingsContext);
+
+export const useReaderScreenEffects = () => {
+  const { isKeepAwake, readerBrightness } = useReaderSettings();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isKeepAwake) return;
+      activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+      return () => {
+        deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+      };
+    }, [isKeepAwake]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (readerBrightness === null) return;
+      Brightness.setBrightnessAsync(readerBrightness).catch(() => {});
+      return () => {
+        if (Platform.OS === "android")
+          Brightness.restoreSystemBrightnessAsync().catch(() => {});
+      };
+    }, [readerBrightness]),
+  );
+};

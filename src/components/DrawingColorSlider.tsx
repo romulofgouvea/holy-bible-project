@@ -14,6 +14,7 @@ import {
   colorAtRatio,
   SLIDER_GRADIENT_STOPS,
 } from "../utils/drawing";
+import { applyNativeStyle } from "../utils/nativeStyle";
 import { impactLight } from "../utils/haptics";
 
 type Props = {
@@ -98,12 +99,10 @@ export const DrawingColorSlider = React.memo(
           Math.max(next * height - thumbSize / 2, 0),
           Math.max(height - thumbSize, 0),
         );
-        thumbRef.current?.setNativeProps({
-          style: {
-            opacity: 1,
-            backgroundColor: colorAtRatio(next),
-            transform: [{ translateY }],
-          },
+        applyNativeStyle(thumbRef.current, {
+          opacity: 1,
+          backgroundColor: colorAtRatio(next),
+          transform: [{ translateY }],
         });
       },
       [thumbSize],

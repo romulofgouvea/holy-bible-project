@@ -692,7 +692,7 @@ export default function ConfigurationScreen() {
         >
           <SettingsItem
             label="Modo leitura sem distração"
-            description="Esconde a barra de localização e os botões flutuantes"
+            description="Esconde os botões flutuantes e mantém versão, livro e capítulo"
             icon="eye-off"
             onPress={() => setIsFocusMode(!isFocusMode)}
             rightElement={

@@ -76,6 +76,8 @@ type VerseReaderProps = {
   viewabilityConfig?: any;
   listRef?: React.RefObject<any>;
   onScroll?: (event: any) => void;
+  onContentSizeChange?: (width: number, height: number) => void;
+  onLayout?: (event: any) => void;
   onScrollBeginDrag?: (event: any) => void;
   onScrollEndDrag?: (event: any) => void;
   onMomentumScrollEnd?: (event: any) => void;
@@ -502,6 +504,8 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     viewabilityConfig,
     listRef,
     onScroll,
+    onContentSizeChange,
+    onLayout,
     onScrollBeginDrag,
     onScrollEndDrag,
     onMomentumScrollEnd,
@@ -893,6 +897,8 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
         viewabilityConfig={viewabilityConfig}
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
+        onContentSizeChange={onContentSizeChange}
+        onLayout={onLayout}
         onScrollBeginDrag={onScrollBeginDrag}
         onScrollEndDrag={onScrollEndDrag}
         onMomentumScrollEnd={onMomentumScrollEnd}

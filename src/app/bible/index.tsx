@@ -13,7 +13,9 @@ export default function BibleIndex() {
         try {
           const parsed = JSON.parse(val);
           if (parsed.version && parsed.book && parsed.chapter) {
-            setRoute(`/bible/${parsed.version.toLowerCase()}/${parsed.book.toLowerCase()}/${parsed.chapter}`);
+            setRoute(
+              `/bible/${parsed.version.toLowerCase()}/${parsed.book.toLowerCase()}/${parsed.chapter}`,
+            );
           }
         } catch (e) {}
       }

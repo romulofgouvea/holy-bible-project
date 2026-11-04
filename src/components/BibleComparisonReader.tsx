@@ -455,6 +455,7 @@ export const BibleComparisonReader = React.memo(
             flexDirection: "row",
             alignItems: "center",
             paddingVertical: ms(DESIGN.spacing.xl),
+            paddingTop: ms(DESIGN.spacing.huge),
             marginBottom: ms(DESIGN.spacing.sm),
           },
           comparisonHeaderCol: {

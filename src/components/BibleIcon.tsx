@@ -15,7 +15,28 @@ export type BibleIconProps = {
   style?: ViewStyle;
   activeOpacity?: number;
   testID?: string;
+  accessibilityLabel?: string;
 };
+
+const ICON_LABELS: Partial<Record<keyof typeof Feather.glyphMap, string>> = {
+  x: "Fechar",
+  "chevron-left": "Anterior",
+  "chevron-right": "Próximo",
+  "chevron-up": "Expandir",
+  "chevron-down": "Recolher",
+  check: "Concluir",
+  "arrow-left": "Voltar",
+  menu: "Menu",
+  search: "Pesquisar",
+  "trash-2": "Excluir",
+  plus: "Adicionar",
+  "more-vertical": "Mais opções",
+  type: "Aparência",
+  clock: "Histórico",
+  "arrow-up": "Voltar ao topo",
+};
+
+const MIN_TOUCH_SIZE = 48;
 
 export function BibleIcon({
   name,
@@ -28,6 +49,7 @@ export function BibleIcon({
   style,
   activeOpacity = 0.7,
   testID,
+  accessibilityLabel,
 }: BibleIconProps) {
   const { ms, DESIGN } = useResponsive();
   const { colors } = useTheme();
@@ -46,11 +68,22 @@ export function BibleIcon({
 
   const finalContainerSize = ms(containerSize);
   const finalIconSize = size || ms(containerSize * 0.5);
+  const hitSlopSize = Math.max(0, (MIN_TOUCH_SIZE - finalContainerSize) / 2);
 
   return (
     <Container
       testID={testID}
       onPress={onPress}
+      {...(onPress && {
+        accessibilityRole: "button" as const,
+        accessibilityLabel: accessibilityLabel ?? ICON_LABELS[name],
+        hitSlop: {
+          top: hitSlopSize,
+          bottom: hitSlopSize,
+          left: hitSlopSize,
+          right: hitSlopSize,
+        },
+      })}
       activeOpacity={activeOpacity}
       style={[
         styles.container,

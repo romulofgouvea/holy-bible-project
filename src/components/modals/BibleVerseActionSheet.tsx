@@ -377,6 +377,7 @@ export function BibleVerseActionSheet(props: VerseActionSheetProps) {
           setStudyModalVisible(false);
           onClose();
         }}
+        onDismiss={() => setStudyModalVisible(false)}
         selectedVerses={selectedVerses}
         onShowToast={props.onShowToast}
       />
@@ -387,6 +388,7 @@ export function BibleVerseActionSheet(props: VerseActionSheetProps) {
           setNoteModalVisible(false);
           onClose();
         }}
+        onDismiss={() => setNoteModalVisible(false)}
         selectedVerses={selectedVerses}
         onShowToast={props.onShowToast}
       />

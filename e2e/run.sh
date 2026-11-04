@@ -25,7 +25,7 @@ require_device() {
 
 ui() {
   MSYS_NO_PATHCONV=1 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
-  adb exec-out cat /sdcard/ui.xml
+  MSYS_NO_PATHCONV=1 adb exec-out cat /sdcard/ui.xml
 }
 
 shot() { adb exec-out screencap -p >"$OUT/$1.png"; }
@@ -74,7 +74,13 @@ check_absent() {
 open_drawer_item() {
   tap_pair "$MENU"
   wait_a_bit 1
-  tap_text "$1" 0 2
+  if [ "$1" = "Bíblia" ]; then
+    tap_xy 385 519
+    wait_a_bit 2
+  else
+    tap_text "$1" 0 2
+  fi
+  dismiss_donate
 }
 
 reload_app() {
@@ -90,6 +96,8 @@ reload_app() {
   FAIL=$((FAIL + 1))
   FAILED+=("reload")
 }
+
+dismiss_donate() { has_text "Apoie este Projeto" && tap_xy 948 597; }
 
 dismiss_errors() { has_text "Dismiss" && tap_text "Dismiss" 0 1; }
 
@@ -107,11 +115,16 @@ section_bible() {
 section_appearance() {
   echo "== 2. Aparência (Aa) e modo sem distração"
   open_drawer_item "Bíblia"
+  wait_a_bit 2.5
+  dismiss_donate
   tap_pair "$ARIA"
-  wait_a_bit 1.5
+  wait_a_bit 2.5
   check "modal de aparencia" "Aparência (Aa)"
   check "secao texto" "Espaçamento entre Linhas"
+  adb shell input swipe 540 1500 540 500 300
+  wait_a_bit 1
   check "secao exibicao" "Modo sem distração"
+  check "restaurar tudo" "Restaurar tudo"
   check "secao desenhos (antes rabiscos)" "Desenhos"
   check_absent "nome antigo rabiscos" "Rabiscos"
   adb shell input keyevent 4
@@ -195,7 +208,7 @@ section_config() {
   check "titulo configuracoes" "Configurações"
   check "lembrete de leitura" "Lembrete de leitura"
   shot config-top
-  adb shell input swipe 540 1700 540 700 300
+  adb shell input swipe 540 1700 540 1100 300
   wait_a_bit 1
   check "modo sem distracao" "Modo leitura sem distração"
   shot config-bible-section
@@ -204,7 +217,9 @@ section_config() {
 section_draw() {
   echo "== 9. Desenho na Bíblia (barra, espessura, cores recentes)"
   open_drawer_item "Bíblia"
-  adb shell input swipe 540 1500 540 1500 900
+  wait_a_bit 2
+  dismiss_donate
+  tap_xy 540 1300
   wait_a_bit 1.5
   shot draw-actions
   tap_xy 629 1980

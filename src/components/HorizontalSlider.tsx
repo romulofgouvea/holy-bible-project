@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
+  AccessibilityActionEvent,
   GestureResponderEvent,
   LayoutChangeEvent,
   StyleSheet,
@@ -8,6 +9,7 @@ import {
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { clampRatio } from "../utils/drawing";
+import { applyNativeStyle } from "../utils/nativeStyle";
 import { selectionHaptic } from "../utils/haptics";
 
 type Props = {
@@ -18,6 +20,8 @@ type Props = {
   onPreview?: (value: number) => void;
   onComplete: (value: number) => void;
   onDragChange?: (isDragging: boolean) => void;
+  markValue?: number;
+  label?: string;
   testID?: string;
 };
 
@@ -32,12 +36,15 @@ export const HorizontalSlider = React.memo(
     onPreview,
     onComplete,
     onDragChange,
+    markValue,
+    label,
     testID,
   }: Props) => {
     const { ms, DESIGN } = useResponsive();
     const { colors } = useTheme();
     const thumbRef = useRef<ViewHandle>(null);
     const fillRef = useRef<ViewHandle>(null);
+    const markRef = useRef<ViewHandle>(null);
     const trackWidthRef = useRef(0);
     const trackLeftRef = useRef(0);
     const ratioRef = useRef(clampRatio((value - min) / (max - min)));
@@ -58,6 +65,15 @@ export const HorizontalSlider = React.memo(
             borderRadius: ms(DESIGN.borderRadius.full),
             backgroundColor: colors.border,
             overflow: "hidden",
+          },
+          mark: {
+            position: "absolute",
+            width: 2,
+            height: trackHeight * 2,
+            top: "50%",
+            marginTop: -trackHeight,
+            backgroundColor: colors.textMuted,
+            opacity: 0.6,
           },
           fill: {
             height: "100%",
@@ -82,14 +98,23 @@ export const HorizontalSlider = React.memo(
     const apply = useCallback(
       (ratio: number) => {
         const usable = Math.max(trackWidthRef.current - thumbSize, 0);
-        thumbRef.current?.setNativeProps({
-          style: { opacity: 1, left: ratio * usable },
+        applyNativeStyle(thumbRef.current, {
+          opacity: 1,
+          left: ratio * usable,
         });
-        fillRef.current?.setNativeProps({
-          style: { width: ratio * usable + thumbSize / 2 },
+        applyNativeStyle(fillRef.current, {
+          width: ratio * usable + thumbSize / 2,
         });
+        if (markValue !== undefined) {
+          applyNativeStyle(markRef.current, {
+            left:
+              clampRatio((markValue - min) / (max - min)) * usable +
+              thumbSize / 2 -
+              1,
+          });
+        }
       },
-      [thumbSize],
+      [thumbSize, markValue, min, max],
     );
 
     useEffect(() => {
@@ -137,6 +162,19 @@ export const HorizontalSlider = React.memo(
       [move, onDragChange],
     );
 
+    const handleAccessibilityAction = useCallback(
+      (e: AccessibilityActionEvent) => {
+        const delta = e.nativeEvent.actionName === "increment" ? step : -step;
+        const next = Math.min(Math.max(valueRef.current + delta, min), max);
+        valueRef.current = next;
+        ratioRef.current = (next - min) / (max - min);
+        apply(ratioRef.current);
+        onPreview?.(next);
+        onComplete(next);
+      },
+      [step, min, max, apply, onPreview, onComplete],
+    );
+
     const handleEnd = useCallback(() => {
       onDragChange?.(false);
       onComplete(valueRef.current);
@@ -154,10 +192,19 @@ export const HorizontalSlider = React.memo(
         onResponderRelease={handleEnd}
         onResponderTerminate={handleEnd}
         testID={testID}
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={label}
+        accessibilityValue={{ min, max, now: value }}
+        accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+        onAccessibilityAction={handleAccessibilityAction}
       >
         <View style={styles.track} pointerEvents="none">
           <View ref={fillRef} style={[styles.fill, { width: 0 }]} />
         </View>
+        {markValue !== undefined && (
+          <View ref={markRef} pointerEvents="none" style={styles.mark} />
+        )}
         <View
           ref={thumbRef}
           pointerEvents="none"

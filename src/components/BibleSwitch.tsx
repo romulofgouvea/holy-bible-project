@@ -7,9 +7,10 @@ import { impactLight } from "../utils/haptics";
 interface BibleSwitchProps {
   value: boolean;
   onValueChange: (value: boolean) => void;
+  label?: string;
 }
 
-export function BibleSwitch({ value, onValueChange }: BibleSwitchProps) {
+export function BibleSwitch({ value, onValueChange, label }: BibleSwitchProps) {
   const { colors } = useTheme();
   const { ms, DESIGN } = useResponsive();
   const styles = useMemo(
@@ -40,6 +41,9 @@ export function BibleSwitch({ value, onValueChange }: BibleSwitchProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.9}
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: value }}
       onPress={() => {
         impactLight();
         onValueChange(!value);

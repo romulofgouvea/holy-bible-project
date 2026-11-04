@@ -47,7 +47,7 @@ Cada passo tem o resultado esperado. A coluna **Auto** indica o que `e2e/run.sh`
 2. Rolar. O cabeçalho continua visível, aparece o botão quadrado de subir.
 
 ### 2. Aparência e modo sem distração (`section_appearance`) — Auto
-1. Tocar em **T** (876, 187). Modal "Aparência (Aa)" com prévia ao vivo e as seções Texto, Cores, Exibição (**Modo sem distração**, **Desenhos**) e Tela (não "Rabiscos").
+1. Tocar em **T** (876, 187). Modal "Aparência (Aa)" com prévia ao vivo e o botão **Restaurar tudo**; seções Texto, Cores, Exibição (**Modo sem distração**, **Desenhos**) e Tela (não "Rabiscos").
 2. Ligar **Modo sem distração** (manual) e fechar. Os botões flutuantes de anterior e próximo só aparecem ao chegar ao fim do capítulo, e a barra de localização (versão, livro e capítulo) continua visível.
 3. Voltar para **Normal**.
 
@@ -121,3 +121,11 @@ Ver o fim deste arquivo, seção **Registro**, atualizada a cada execução.
 Não concluída: o `adb` perdeu a conexão com o aparelho no meio da execução ("device offline"), então os resultados dessa rodada foram descartados.
 O roteiro agora aborta com `exit 2` e a mensagem "Aparelho adb desconectado" se isso acontecer.
 Próxima execução: reconectar o aparelho, ligar Não perturbar e rodar `bash e2e/run.sh`.
+
+### 03/11/2026 — `bash e2e/run.sh` (automático, SM-M356B por adb sem fio)
+
+Resultado: 27 ok, 0 falhas.
+Ajustes no roteiro: `ui()` usa `MSYS_NO_PATHCONV` também no `cat` (sem isso o Git Bash lia o arquivo errado e tudo falhava); o item **Bíblia** do menu é tocado por coordenada (a busca por texto caía em "Apoie este Projeto"); a Aparência rola o modal antes de procurar Exibição e Restaurar tudo.
+
+Conferido à mão no aparelho: Aparência (slider de tamanho e de brilho sem rolar a lista, Restaurar tudo, tema Preto, Lora), modo sem distração (barra de localização fica, progresso some, setas só no fim), barras vertical de cor e espessura salvando ao soltar o dedo fora da barra, modais de versão, livro, capítulo, histórico, comparar versão (vertical, horizontal, trocar, fechar), nota e adicionar ao estudo.
+Achado: no layout horizontal da comparação os chips NAA/ESV cobrem o início do título do capítulo.

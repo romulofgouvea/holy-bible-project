@@ -12,6 +12,7 @@ import { BiblePageModal } from "./BiblePageModal";
 type BibleNoteModalProps = {
   visible: boolean;
   onClose: () => void;
+  onDismiss?: () => void;
   selectedVerses: SelectedVerse[];
   onShowToast?: (msg: string, type?: "success" | "info" | "warning") => void;
 };
@@ -19,9 +20,11 @@ type BibleNoteModalProps = {
 export function BibleNoteModal({
   visible,
   onClose,
+  onDismiss,
   selectedVerses,
   onShowToast,
 }: BibleNoteModalProps) {
+  const handleDismiss = onDismiss ?? onClose;
   const { notes, notesMap, saveNote } = useNotes();
   const { colors } = useTheme();
   const { ms, DESIGN } = useResponsive();
@@ -72,7 +75,7 @@ export function BibleNoteModal({
   return (
     <BiblePageModal
       visible={visible}
-      onClose={onClose}
+      onClose={handleDismiss}
       fullHeight={true}
       header={
         <View
@@ -108,7 +111,7 @@ export function BibleNoteModal({
             name="x"
             color={colors.error}
             backgroundColor={colors.error + "20"}
-            onPress={onClose}
+            onPress={handleDismiss}
           />
         </View>
       }

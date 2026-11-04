@@ -15,6 +15,7 @@ import {
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
 import { clampRatio } from "../utils/drawing";
+import { applyNativeStyle } from "../utils/nativeStyle";
 import { impactLight } from "../utils/haptics";
 
 type Props = {
@@ -90,25 +91,22 @@ export const DrawingWidthSlider = React.memo(
     );
 
     const sizeAt = useCallback(
-      (ratio: number) =>
-        Math.min(widthFromRatio(ratio) * factor, sampleLimit),
+      (ratio: number) => Math.min(widthFromRatio(ratio) * factor, sampleLimit),
       [factor, sampleLimit],
     );
 
     const onLayout = useCallback(
       (e: LayoutChangeEvent) => {
         trackHeightRef.current = e.nativeEvent.layout.height;
-        thumbRef.current?.setNativeProps({
-          style: {
-            opacity: 1,
-            transform: [
-              {
-                translateY:
-                  (1 - ratioRef.current) *
-                  Math.max(trackHeightRef.current - thumbSize, 0),
-              },
-            ],
-          },
+        applyNativeStyle(thumbRef.current, {
+          opacity: 1,
+          transform: [
+            {
+              translateY:
+                (1 - ratioRef.current) *
+                Math.max(trackHeightRef.current - thumbSize, 0),
+            },
+          ],
         });
       },
       [thumbSize],
@@ -123,13 +121,11 @@ export const DrawingWidthSlider = React.memo(
         );
         const next = 1 - fromTop;
         ratioRef.current = next;
-        thumbRef.current?.setNativeProps({
-          style: { transform: [{ translateY: fromTop * usable }] },
+        applyNativeStyle(thumbRef.current, {
+          transform: [{ translateY: fromTop * usable }],
         });
         const size = sizeAt(next);
-        sampleRef.current?.setNativeProps({
-          style: { width: size, height: size },
-        });
+        applyNativeStyle(sampleRef.current, { width: size, height: size });
       },
       [thumbSize, sizeAt],
     );
