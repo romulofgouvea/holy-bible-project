@@ -19,7 +19,7 @@ npx jest BibleText            # run a specific test file by name pattern
 # Build & deploy (Android only)
 npm run eas:build:preview     # EAS cloud build → internal track
 npm run eas:build:production  # EAS cloud build → production track
-npm run local:build:preview   # local APK via PowerShell (Windows)
+npm run local:build:preview   # local signed AAB (Windows/Linux)
 ```
 
 ## Architecture
@@ -73,7 +73,7 @@ Because the header occupies index 0, **verse number equals its flat index**. `sc
 
 ### Split-screen comparison (`BibleScreen`)
 
-`BibleScreen` supports a dual-version comparison mode. Synchronized scrolling between panes uses mutual boolean refs (`isScrollingTop` / `isScrollingBottom`) as mutex flags to prevent scroll event loops. The compared version is persisted to `STORAGE_KEYS.BIBLE_COMPARE`. Users can toggle vertical/horizontal layout and swap pane positions.
+`BibleScreen` supports a dual-version comparison mode. Synchronized scrolling between panes records the offset each pane was programmatically scrolled to (`expectedTopOffsetRef` / `expectedBottomOffsetRef`) and ignores the echo scroll event, preventing scroll event loops. The compared version is persisted to `STORAGE_KEYS.BIBLE_COMPARE`. Users can toggle vertical/horizontal layout and swap pane positions.
 
 ### Domain models (`src/models/index.ts`)
 

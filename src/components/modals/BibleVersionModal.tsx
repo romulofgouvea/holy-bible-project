@@ -130,7 +130,7 @@ export function BibleVersionModal({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   const scrollViewRef = React.useRef<ScrollView>(null);
   const hasScrolledRef = React.useRef(false);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { ROUTE_LABELS } from "../constants/routes";
+import { hasAudioForVersion } from "../constants/audioVoices";
+import { ROUTES, ROUTE_LABELS } from "../constants/routes";
 import { useReaderSettings } from "../hooks/useReaderSettings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
@@ -15,6 +16,8 @@ export type BibleTopBarProps = {
   onOpenSettings: () => void;
   onOpenSearch: () => void;
   onOpenHistory: () => void;
+  version: string;
+  onOpenAudio: () => void;
   isSplitScreen?: boolean;
   onToggleCompare?: () => void;
 };
@@ -27,6 +30,8 @@ export const BibleTopBar = React.memo((props: BibleTopBarProps) => {
     onOpenSettings,
     onOpenSearch,
     onOpenHistory,
+    version,
+    onOpenAudio,
     isSplitScreen,
     onToggleCompare,
   } = props;
@@ -49,6 +54,28 @@ export const BibleTopBar = React.memo((props: BibleTopBarProps) => {
         onMenuPress={onOpenMenu}
         rightContent={
           <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {hasAudioForVersion(version) ? (
+              <TouchableOpacity
+                style={[
+                  styles.menuButton,
+                  {
+                    backgroundColor: "transparent",
+                    width: ms(DESIGN.height.sm),
+                    height: ms(DESIGN.height.sm),
+                    borderRadius: ms(DESIGN.borderRadius.sm),
+                    alignItems: "center",
+                    justifyContent: "center",
+                  },
+                ]}
+                onPress={onOpenAudio}
+              >
+                <BibleIcon
+                  name="headphones"
+                  size={ms(DESIGN.fontSize.xl)}
+                  color={headerContent}
+                />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               style={[
                 styles.menuButton,
@@ -57,27 +84,6 @@ export const BibleTopBar = React.memo((props: BibleTopBarProps) => {
                   width: ms(DESIGN.height.sm),
                   height: ms(DESIGN.height.sm),
                   borderRadius: ms(DESIGN.borderRadius.sm),
-                  alignItems: "center",
-                  justifyContent: "center",
-                },
-              ]}
-              onPress={onOpenSearch}
-            >
-              <BibleIcon
-                name="search"
-                size={ms(DESIGN.fontSize.xl)}
-                color={headerContent}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.menuButton,
-                {
-                  backgroundColor: "transparent",
-                  width: ms(DESIGN.height.sm),
-                  height: ms(DESIGN.height.sm),
-                  borderRadius: ms(DESIGN.borderRadius.sm),
-                  marginLeft: ms(DESIGN.spacing.xs),
                   alignItems: "center",
                   justifyContent: "center",
                 },
@@ -120,6 +126,11 @@ export const BibleTopBar = React.memo((props: BibleTopBarProps) => {
         onClose={() => setDotsMenuVisible(false)}
         title="Ações"
         items={[
+          {
+            icon: "search",
+            label: ROUTE_LABELS[ROUTES.SEARCH],
+            onPress: onOpenSearch,
+          },
           {
             icon: "clock",
             label: ROUTE_LABELS.HISTORY,

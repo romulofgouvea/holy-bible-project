@@ -2,13 +2,9 @@
   "expo": {
     "name": "Bíblia Online",
     "slug": "holy-bible",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "orientation": "default",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "icon": "./assets/images/icon.png",
     "scheme": "holybible",
     "userInterfaceStyle": "automatic",
@@ -21,7 +17,7 @@
     },
     "android": {
       "package": "br.com.stevanini.holybible",
-      "versionCode": 39,
+      "versionCode": 40,
       "adaptiveIcon": {
         "backgroundColor": "#008080",
         "foregroundImage": "./assets/images/adaptive-icon.png"
@@ -73,9 +69,31 @@
         {
           "widgets": [
             {
-              "name": "DailyVerse",
-              "label": "Versículo do dia",
-              "description": "Um versículo novo todos os dias",
+              "name": "ContinueReading",
+              "label": "Continuar leitura",
+              "description": "Retome de onde parou",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "ReadingPlan",
+              "label": "Plano de leitura",
+              "description": "A próxima leitura do seu plano",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "Stats",
+              "label": "Estatísticas",
+              "description": "Sua sequência e progresso",
               "minWidth": "250dp",
               "minHeight": "110dp",
               "targetCellWidth": 4,

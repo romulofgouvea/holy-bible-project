@@ -1,10 +1,8 @@
 import React, { useMemo } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { hasAudioForVersion } from "../constants/audioVoices";
 import { useReaderSettings } from "../hooks/useReaderSettings";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../hooks/useTheme";
-import { BibleIcon } from "./BibleIcon";
 import { BibleText } from "./BibleText";
 
 export type BibleLocationBarProps = {
@@ -15,7 +13,6 @@ export type BibleLocationBarProps = {
   onOpenVersion: () => void;
   onOpenBook: () => void;
   onOpenChapter: () => void;
-  onOpenAudio: () => void;
 };
 
 export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
@@ -27,7 +24,6 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
     onOpenVersion,
     onOpenBook,
     onOpenChapter,
-    onOpenAudio,
   } = props;
   const { ms, DESIGN } = useResponsive();
   const { readerColors } = useReaderSettings();
@@ -39,6 +35,7 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
         container: {
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "center",
           minHeight: ms(DESIGN.height.lg),
           gap: ms(DESIGN.spacing.xs),
           paddingHorizontal: ms(DESIGN.spacing.md),
@@ -51,11 +48,9 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
           paddingHorizontal: ms(DESIGN.spacing.md),
           paddingVertical: ms(DESIGN.spacing.sm),
           borderRadius: ms(DESIGN.borderRadius.sm),
+          borderWidth: 1,
+          borderColor: readerColors.primary + "40",
           backgroundColor: readerColors.primary + "15",
-        },
-        audioButton: {
-          marginLeft: "auto",
-          padding: ms(DESIGN.spacing.xs),
         },
         bookBadge: {
           flexShrink: 1,
@@ -99,19 +94,6 @@ export const BibleLocationBar = React.memo((props: BibleLocationBarProps) => {
       >
         <BibleText style={styles.badgeText}>{chapter}</BibleText>
       </TouchableOpacity>
-      {hasAudioForVersion(version) ? (
-        <TouchableOpacity
-          style={styles.audioButton}
-          onPress={onOpenAudio}
-          activeOpacity={0.7}
-        >
-          <BibleIcon
-            name="headphones"
-            size={ms(DESIGN.icon.sm)}
-            color={readerColors.primary}
-          />
-        </TouchableOpacity>
-      ) : null}
     </View>
   );
 });

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { usePlanReading } from "../hooks/usePlanReading";
 import { useReaderSettings } from "../hooks/useReaderSettings";
@@ -13,8 +13,22 @@ type Props = {
 
 export const PlanReadingFinishCard = React.memo(({ onMessage }: Props) => {
   const { ms, DESIGN } = useResponsive();
-  const { colors } = useTheme();
-  const { fontSizeMultiplier } = useReaderSettings();
+  const { colors: themeColors } = useTheme();
+  const { fontSizeMultiplier, readerColors, readerTheme } = useReaderSettings();
+  const colors = useMemo(
+    () =>
+      readerTheme === "sepia"
+        ? {
+            ...themeColors,
+            primary: readerColors.primary,
+            onPrimary: readerColors.onPrimary,
+            onSurface: readerColors.onSurface,
+            textMuted: readerColors.secondary,
+            border: readerColors.secondaryVariant,
+          }
+        : themeColors,
+    [readerTheme, readerColors, themeColors],
+  );
   const fs = (size: number) => ms(size * fontSizeMultiplier);
   const {
     isActive,

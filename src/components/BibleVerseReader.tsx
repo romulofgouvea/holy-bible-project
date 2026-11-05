@@ -83,6 +83,7 @@ type VerseReaderProps = {
   onMomentumScrollEnd?: (event: any) => void;
   scrollEventThrottle?: number;
   splitMode?: boolean;
+  renderScrollComponent?: any;
   footerExtra?: React.ReactNode;
   headerExtra?: React.ReactNode;
 };
@@ -511,6 +512,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     onMomentumScrollEnd,
     scrollEventThrottle,
     splitMode,
+    renderScrollComponent,
     footerExtra,
     headerExtra,
   } = props;
@@ -734,6 +736,7 @@ export const BibleVerseReader = React.memo((props: VerseReaderProps) => {
     >
       <FlashList
         ref={flashListRef}
+        renderScrollComponent={renderScrollComponent}
         data={flatData}
         getItemType={(item) => item.type}
         keyExtractor={(item, idx) => {

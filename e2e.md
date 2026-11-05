@@ -40,7 +40,7 @@ bash e2e/run.sh notes plan        # roda só algumas seções
 | 15 | Coleções (lista, detalhe, nova coleção) | menu lateral > Coleções (`/collections`) | `screens/CollectionsScreen.tsx` |
 | 16 | Estatísticas de leitura | menu lateral > Estatísticas (`/stats`) | `screens/StatsScreen.tsx` |
 | 17 | Adicionar à coleção | versículo selecionado > ícone de marcador | `components/modals/BibleAddToCollectionModal.tsx` |
-| 18 | Widget "Versículo do dia" (Android) | tela inicial do aparelho > widgets > Bíblia Online | `widgets/DailyVerseWidget.tsx` |
+| 18 | Widgets "Continuar leitura", "Plano de leitura" e "Estatísticas" (Android) | tela inicial do aparelho > widgets > Bíblia Online | `widgets/CardWidget.tsx` |
 
 ## Ordem do teste
 
@@ -139,4 +139,4 @@ Achado: no layout horizontal da comparação os chips NAA/ESV cobrem o início d
 
 Implementado sem rodar no aparelho: seções `collections` e `stats` e o atalho de referência em `search` foram adicionados ao `e2e/run.sh`, mas ainda não executados.
 Manual pendente: criar coleção pelo ícone de marcador na leitura e conferir no menu Coleções; abrir um versículo da coleção; conferir os números em Estatísticas após marcar um capítulo no plano.
-O widget só existe depois de `npx expo prebuild --platform android` e novo build nativo (não funciona no Expo Go): adicionar "Versículo do dia" na tela inicial e tocar nele para abrir o versículo.
+O widget só existe depois de `npx expo prebuild --platform android` e novo build nativo (não funciona no Expo Go): adicionar os três widgets (Continuar leitura, Plano de leitura, Estatísticas) na tela inicial, conferir que mostram texto e tocar em cada um para abrir o destino.

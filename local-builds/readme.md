@@ -90,8 +90,8 @@ Gerenciado automaticamente via `deploy-state.json`, Após um deploy bem-sucedido
 
 | Arquivo | Função |
 |---|---|
-| `build.ps1` | Script principal de build |
-| `deploy.ps1` | Script de deploy para o Google Play |
+| `build.mjs` | Script principal de build |
+| `deploy.mjs` | Script de deploy para o Google Play |
 | `google-play-deploy.js` | Upload via Google Play Developer API (Node.js) |
 | `outputs/` | AABs gerados (ignorados pelo git) |
 
@@ -102,5 +102,5 @@ Gerenciado automaticamente via `deploy-state.json`, Após um deploy bem-sucedido
 - Node.js + npm
 - Java JDK (para Gradle e keytool)
 - Android SDK / Android Studio
-- PowerShell 5.1+
+- Windows ou Linux. Ao trocar de sistema na mesma pasta, rode `npm ci`: o `node_modules` tem binarios nativos de cada plataforma
 - `expo-cli` instalado globalmente ou via `npx`

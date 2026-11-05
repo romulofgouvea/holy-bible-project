@@ -43,6 +43,11 @@ import {
 } from "../utils/studyDrawingBridge";
 import { DrawingToolbar } from "../components/DrawingToolbar";
 import { useDrawings } from "../hooks/useDrawings";
+import {
+  BottomSyncedScrollView,
+  TopSyncedScrollView,
+} from "../components/SyncedScrollView";
+import { ScrollSyncContext, useScrollSync } from "../hooks/useScrollSync";
 import { BibleTopBar } from "../components/BibleTopBar";
 import { BibleVerseReader } from "../components/BibleVerseReader";
 import {
@@ -51,6 +56,8 @@ import {
 } from "../components/modals/BibleAudioModal";
 import { BibleConfirmModal } from "../components/modals/BibleConfirmModal";
 import { BibleHistoryModal } from "../components/modals/BibleHistoryModal";
+import { BibleChangelogModal } from "../components/modals/BibleChangelogModal";
+import { useChangelogOnUpdate } from "../hooks/useChangelogOnUpdate";
 import { DonateModal } from "../components/modals/DonateModal";
 import { getBibleTitles } from "../data/bible-titles";
 import { getBibleData } from "../data/bible-version";
@@ -193,8 +200,6 @@ export default function BibleScreen() {
   const [isControlGroupExpanded, setIsControlGroupExpanded] = useState(false);
   const controlGroupAnim = useRef(new Animated.Value(0)).current;
 
-  const isScrollingTop = useRef(false);
-  const isScrollingBottom = useRef(false);
   const lastScrollY = useRef(0);
   const navVisibleAnim = useRef(new Animated.Value(1)).current;
   const navVisibleRef = useRef(true);
@@ -324,44 +329,12 @@ export default function BibleScreen() {
   );
 
   const handleFirstScroll = useCallback(
-    (event: any) => {
-      if (!isScrollingBottom.current) {
-        updateNavVisibility(event.nativeEvent);
-      }
-      if (isScrollingBottom.current) return;
-      isScrollingTop.current = true;
-      if (secondSectionListRef.current) {
-        const offsetY = event.nativeEvent.contentOffset.y;
-        secondSectionListRef.current.scrollToOffset({
-          offset: offsetY,
-          animated: false,
-        });
-      }
-      setTimeout(() => {
-        isScrollingTop.current = false;
-      }, 50);
-    },
+    (event: any) => updateNavVisibility(event.nativeEvent),
     [updateNavVisibility],
   );
 
   const handleSecondScroll = useCallback(
-    (event: any) => {
-      if (!isScrollingTop.current) {
-        updateNavVisibility(event.nativeEvent);
-      }
-      if (isScrollingTop.current) return;
-      isScrollingBottom.current = true;
-      if (sectionListRef.current) {
-        const offsetY = event.nativeEvent.contentOffset.y;
-        sectionListRef.current.scrollToOffset({
-          offset: offsetY,
-          animated: false,
-        });
-      }
-      setTimeout(() => {
-        isScrollingBottom.current = false;
-      }, 50);
-    },
+    (event: any) => updateNavVisibility(event.nativeEvent),
     [updateNavVisibility],
   );
 
@@ -492,9 +465,11 @@ export default function BibleScreen() {
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
   const [isDonateVisible, setIsDonateVisible] = useState(false);
+  const changelog = useChangelogOnUpdate();
   const [isAudioModalVisible, setIsAudioModalVisible] = useState(false);
   const [isAudioSettingsVisible, setIsAudioSettingsVisible] = useState(false);
   const [playingVerse, setPlayingVerse] = useState<number | null>(null);
+  const scrollSync = useScrollSync();
   const audioModalRef = useRef<BibleAudioModalHandle>(null);
   const { selectedVoice, autoScroll } = useAudioSettings();
   const playingVerseKey =
@@ -993,6 +968,8 @@ export default function BibleScreen() {
       </Animated.View>
 
       <BibleTopBar
+        version={version}
+        onOpenAudio={() => setIsAudioModalVisible(true)}
         onPrevChapter={() => handleNavigateChapter(-1)}
         onNextChapter={() => handleNavigateChapter(1)}
         onOpenMenu={() => setIsDrawerVisible(true)}
@@ -1060,7 +1037,6 @@ export default function BibleScreen() {
             },
           });
         }}
-        onOpenAudio={() => setIsAudioModalVisible(true)}
       />
 
       <BibleHistoryModal
@@ -1294,247 +1270,252 @@ export default function BibleScreen() {
                 </Animated.View>
               </View>
             ) : (
-              <View style={styles.splitScreenContainerVertical}>
-                <View style={styles.splitPaneTop}>
-                  {renderVersionBadge(version, () =>
-                    openModal({
-                      initialStep: "version",
-                      initialVersion: version,
-                      onSelect: (s) => {
-                        if (s.version) {
-                          navigateTo({ version: s.version });
-                        }
-                      },
-                    }),
-                  )}
-                  <BibleVerseReader
-                    listRef={sectionListRef}
-                    sections={sectionData}
-                    blinkingVerse={blinkingVerse}
-                    playingVerseKey={playingVerseKey}
-                    highlights={highlights}
-                    notes={notesMap}
-                    version={version}
-                    selectedKeys={selectedVerses.reduce(
-                      (acc, v) => {
-                        acc[`${v.bookAbbrev}-${v.chapter}-${v.verse}`] = true;
-                        return acc;
-                      },
-                      {} as Record<string, boolean>,
+              <ScrollSyncContext.Provider value={scrollSync}>
+                <View style={styles.splitScreenContainerVertical}>
+                  <View style={styles.splitPaneTop}>
+                    {renderVersionBadge(version, () =>
+                      openModal({
+                        initialStep: "version",
+                        initialVersion: version,
+                        onSelect: (s) => {
+                          if (s.version) {
+                            navigateTo({ version: s.version });
+                          }
+                        },
+                      }),
                     )}
-                    bookAbbrev={currentBook.abbrev}
-                    onVersePress={onVersePress}
-                    onVerseLongPress={onVerseLongPress}
-                    onScroll={handleFirstScroll}
-                    scrollEventThrottle={16}
-                    onViewableItemsChanged={handleFirstViewableItemsChanged}
-                    viewabilityConfig={viewabilityConfig}
-                    splitMode
-                  />
-                </View>
-
-                <BibleDivider size={ms(DESIGN.spacing.xs)} />
-
-                <Animated.View
-                  style={[
-                    styles.floatingControlGroup,
-                    {
-                      top: "45%",
-                      width: controlGroupAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [
-                          ms(DESIGN.spacing.xxl),
-                          ms(DESIGN.height.sm * 4 + DESIGN.spacing.sm * 4),
-                        ],
-                      }),
-                      height: controlGroupAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [
-                          ms(DESIGN.spacing.xxl),
-                          ms(DESIGN.height.sm + DESIGN.spacing.sm),
-                        ],
-                      }),
-                      transform: [
-                        {
-                          translateX: controlGroupAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [
-                              -ms(DESIGN.spacing.xxl) / 2,
-                              -ms(
-                                DESIGN.height.sm * 4 + DESIGN.spacing.sm * 4,
-                              ) / 2,
-                            ],
-                          }),
+                    <BibleVerseReader
+                      listRef={sectionListRef}
+                      sections={sectionData}
+                      blinkingVerse={blinkingVerse}
+                      playingVerseKey={playingVerseKey}
+                      highlights={highlights}
+                      notes={notesMap}
+                      version={version}
+                      selectedKeys={selectedVerses.reduce(
+                        (acc, v) => {
+                          acc[`${v.bookAbbrev}-${v.chapter}-${v.verse}`] = true;
+                          return acc;
                         },
-                        {
-                          translateY: controlGroupAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [
-                              -ms(DESIGN.spacing.xxl) / 2,
-                              -ms(DESIGN.height.sm + DESIGN.spacing.sm) / 2,
-                            ],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  {isControlGroupExpanded ? (
-                    <View
-                      style={{
-                        flex: 1,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <TouchableOpacity
-                        style={[
-                          styles.splitHandleBtn,
-                          { backgroundColor: primaryColor + "1F" },
-                        ]}
-                        onPress={handleToggleOrientation}
-                        hitSlop={{
-                          top: DESIGN.spacing.sm,
-                          bottom: DESIGN.spacing.sm,
-                          left: DESIGN.spacing.sm,
-                          right: DESIGN.spacing.sm,
-                        }}
-                      >
-                        <MaterialIcons
-                          name="vertical-split"
-                          color={primaryColor}
-                          size={ms(DESIGN.icon.xs)}
-                        />
-                      </TouchableOpacity>
+                        {} as Record<string, boolean>,
+                      )}
+                      bookAbbrev={currentBook.abbrev}
+                      onVersePress={onVersePress}
+                      onVerseLongPress={onVerseLongPress}
+                      onScroll={handleFirstScroll}
+                      renderScrollComponent={TopSyncedScrollView}
+                      scrollEventThrottle={16}
+                      onViewableItemsChanged={handleFirstViewableItemsChanged}
+                      viewabilityConfig={viewabilityConfig}
+                      splitMode
+                    />
+                  </View>
 
-                      <View style={{ width: ms(DESIGN.spacing.sm) }} />
+                  <BibleDivider size={ms(DESIGN.spacing.xs)} />
 
-                      <TouchableOpacity
-                        style={[
-                          styles.splitHandleBtn,
-                          { backgroundColor: primaryColor + "1F" },
-                        ]}
-                        onPress={handleSwapVersions}
-                        hitSlop={{
-                          top: DESIGN.spacing.sm,
-                          bottom: DESIGN.spacing.sm,
-                          left: DESIGN.spacing.sm,
-                          right: DESIGN.spacing.sm,
-                        }}
-                      >
-                        <MaterialIcons
-                          name="swap-vert"
-                          color={primaryColor}
-                          size={ms(DESIGN.icon.xs)}
-                        />
-                      </TouchableOpacity>
-
-                      <View style={{ width: ms(DESIGN.spacing.sm) }} />
-
-                      <TouchableOpacity
-                        style={[
-                          styles.splitHandleBtn,
+                  <Animated.View
+                    style={[
+                      styles.floatingControlGroup,
+                      {
+                        top: "45%",
+                        width: controlGroupAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [
+                            ms(DESIGN.spacing.xxl),
+                            ms(DESIGN.height.sm * 4 + DESIGN.spacing.sm * 4),
+                          ],
+                        }),
+                        height: controlGroupAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [
+                            ms(DESIGN.spacing.xxl),
+                            ms(DESIGN.height.sm + DESIGN.spacing.sm),
+                          ],
+                        }),
+                        transform: [
                           {
-                            backgroundColor: (colors.error || "#FF4D4D") + "1F",
+                            translateX: controlGroupAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [
+                                -ms(DESIGN.spacing.xxl) / 2,
+                                -ms(
+                                  DESIGN.height.sm * 4 + DESIGN.spacing.sm * 4,
+                                ) / 2,
+                              ],
+                            }),
                           },
-                        ]}
-                        onPress={handleCloseSplit}
-                        hitSlop={{
-                          top: DESIGN.spacing.sm,
-                          bottom: DESIGN.spacing.sm,
-                          left: DESIGN.spacing.sm,
-                          right: DESIGN.spacing.sm,
+                          {
+                            translateY: controlGroupAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [
+                                -ms(DESIGN.spacing.xxl) / 2,
+                                -ms(DESIGN.height.sm + DESIGN.spacing.sm) / 2,
+                              ],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    {isControlGroupExpanded ? (
+                      <View
+                        style={{
+                          flex: 1,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
                         }}
                       >
-                        <BibleIcon
-                          name="x"
-                          color={colors.error || "#FF4D4D"}
-                          size={ms(DESIGN.icon.xs)}
-                        />
-                      </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.splitHandleBtn,
+                            { backgroundColor: primaryColor + "1F" },
+                          ]}
+                          onPress={handleToggleOrientation}
+                          hitSlop={{
+                            top: DESIGN.spacing.sm,
+                            bottom: DESIGN.spacing.sm,
+                            left: DESIGN.spacing.sm,
+                            right: DESIGN.spacing.sm,
+                          }}
+                        >
+                          <MaterialIcons
+                            name="vertical-split"
+                            color={primaryColor}
+                            size={ms(DESIGN.icon.xs)}
+                          />
+                        </TouchableOpacity>
 
-                      <View style={{ width: ms(DESIGN.spacing.sm) }} />
+                        <View style={{ width: ms(DESIGN.spacing.sm) }} />
 
+                        <TouchableOpacity
+                          style={[
+                            styles.splitHandleBtn,
+                            { backgroundColor: primaryColor + "1F" },
+                          ]}
+                          onPress={handleSwapVersions}
+                          hitSlop={{
+                            top: DESIGN.spacing.sm,
+                            bottom: DESIGN.spacing.sm,
+                            left: DESIGN.spacing.sm,
+                            right: DESIGN.spacing.sm,
+                          }}
+                        >
+                          <MaterialIcons
+                            name="swap-vert"
+                            color={primaryColor}
+                            size={ms(DESIGN.icon.xs)}
+                          />
+                        </TouchableOpacity>
+
+                        <View style={{ width: ms(DESIGN.spacing.sm) }} />
+
+                        <TouchableOpacity
+                          style={[
+                            styles.splitHandleBtn,
+                            {
+                              backgroundColor:
+                                (colors.error || "#FF4D4D") + "1F",
+                            },
+                          ]}
+                          onPress={handleCloseSplit}
+                          hitSlop={{
+                            top: DESIGN.spacing.sm,
+                            bottom: DESIGN.spacing.sm,
+                            left: DESIGN.spacing.sm,
+                            right: DESIGN.spacing.sm,
+                          }}
+                        >
+                          <BibleIcon
+                            name="x"
+                            color={colors.error || "#FF4D4D"}
+                            size={ms(DESIGN.icon.xs)}
+                          />
+                        </TouchableOpacity>
+
+                        <View style={{ width: ms(DESIGN.spacing.sm) }} />
+
+                        <TouchableOpacity
+                          style={[
+                            styles.splitHandleBtn,
+                            { backgroundColor: colors.border + "40" },
+                          ]}
+                          onPress={handleToggleControlGroup}
+                          hitSlop={{
+                            top: DESIGN.spacing.sm,
+                            bottom: DESIGN.spacing.sm,
+                            left: DESIGN.spacing.sm,
+                            right: DESIGN.spacing.sm,
+                          }}
+                        >
+                          <BibleIcon
+                            name="chevron-left"
+                            color={colors.textMuted}
+                            size={ms(DESIGN.icon.xs)}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
                       <TouchableOpacity
-                        style={[
-                          styles.splitHandleBtn,
-                          { backgroundColor: colors.border + "40" },
-                        ]}
                         onPress={handleToggleControlGroup}
-                        hitSlop={{
-                          top: DESIGN.spacing.sm,
-                          bottom: DESIGN.spacing.sm,
-                          left: DESIGN.spacing.sm,
-                          right: DESIGN.spacing.sm,
+                        style={{
+                          flex: 1,
+                          width: "100%",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: primaryColor,
+                          borderRadius: ms(DESIGN.borderRadius.md),
                         }}
+                        activeOpacity={0.7}
                       >
                         <BibleIcon
-                          name="chevron-left"
-                          color={colors.textMuted}
+                          name="more-horizontal"
+                          color={colors.onPrimary}
                           size={ms(DESIGN.icon.xs)}
                         />
                       </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={handleToggleControlGroup}
-                      style={{
-                        flex: 1,
-                        width: "100%",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: primaryColor,
-                        borderRadius: ms(DESIGN.borderRadius.md),
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <BibleIcon
-                        name="more-horizontal"
-                        color={colors.onPrimary}
-                        size={ms(DESIGN.icon.xs)}
-                      />
-                    </TouchableOpacity>
-                  )}
-                </Animated.View>
-
-                <View style={styles.splitPaneBottom}>
-                  {renderVersionBadge(secondVersion, () =>
-                    openModal({
-                      initialStep: "version",
-                      target: "study",
-                      initialVersion: secondVersion,
-                      onSelect: (s) => {
-                        if (s.version) {
-                          setSecondVersion(s.version);
-                        }
-                      },
-                    }),
-                  )}
-                  <BibleVerseReader
-                    listRef={secondSectionListRef}
-                    sections={secondSectionData}
-                    blinkingVerse={blinkingVerse}
-                    playingVerseKey={playingVerseKey}
-                    highlights={highlights}
-                    notes={notesMap}
-                    version={secondVersion}
-                    selectedKeys={selectedVerses.reduce(
-                      (acc, v) => {
-                        acc[`${v.bookAbbrev}-${v.chapter}-${v.verse}`] = true;
-                        return acc;
-                      },
-                      {} as Record<string, boolean>,
                     )}
-                    bookAbbrev={currentBook.abbrev}
-                    onVersePress={onVersePress}
-                    onVerseLongPress={onVerseLongPress}
-                    onScroll={handleSecondScroll}
-                    scrollEventThrottle={16}
-                    splitMode
-                  />
+                  </Animated.View>
+
+                  <View style={styles.splitPaneBottom}>
+                    {renderVersionBadge(secondVersion, () =>
+                      openModal({
+                        initialStep: "version",
+                        target: "study",
+                        initialVersion: secondVersion,
+                        onSelect: (s) => {
+                          if (s.version) {
+                            setSecondVersion(s.version);
+                          }
+                        },
+                      }),
+                    )}
+                    <BibleVerseReader
+                      listRef={secondSectionListRef}
+                      sections={secondSectionData}
+                      blinkingVerse={blinkingVerse}
+                      playingVerseKey={playingVerseKey}
+                      highlights={highlights}
+                      notes={notesMap}
+                      version={secondVersion}
+                      selectedKeys={selectedVerses.reduce(
+                        (acc, v) => {
+                          acc[`${v.bookAbbrev}-${v.chapter}-${v.verse}`] = true;
+                          return acc;
+                        },
+                        {} as Record<string, boolean>,
+                      )}
+                      bookAbbrev={currentBook.abbrev}
+                      onVersePress={onVersePress}
+                      onVerseLongPress={onVerseLongPress}
+                      onScroll={handleSecondScroll}
+                      renderScrollComponent={BottomSyncedScrollView}
+                      scrollEventThrottle={16}
+                      splitMode
+                    />
+                  </View>
                 </View>
-              </View>
+              </ScrollSyncContext.Provider>
             )
           ) : (
             <View style={styles.splitPane}>
@@ -1645,10 +1626,12 @@ export default function BibleScreen() {
                   backgroundColor={navBg}
                   borderRadius={ms(DESIGN.borderRadius.md)}
                   onPress={() =>
-                    sectionListRef.current?.scrollToOffset({
-                      offset: 0,
-                      animated: true,
-                    })
+                    isSplitScreen && splitOrientation !== "horizontal"
+                      ? scrollSync.scrollToTop()
+                      : sectionListRef.current?.scrollToOffset({
+                          offset: 0,
+                          animated: true,
+                        })
                   }
                   activeOpacity={0.8}
                   style={{
@@ -1777,6 +1760,10 @@ export default function BibleScreen() {
       <ReaderSettingsModal
         visible={isSettingsModalVisible}
         onClose={() => setIsSettingsModalVisible(false)}
+      />
+      <BibleChangelogModal
+        visible={changelog.isVisible}
+        onClose={changelog.close}
       />
       <DonateModal
         visible={isDonateVisible}

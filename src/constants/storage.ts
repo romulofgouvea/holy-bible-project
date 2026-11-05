@@ -32,6 +32,7 @@ export const STORAGE_KEYS = {
   SPELLCHECK_ENABLED: "bible_spellcheck_enabled",
   APP_COLOR_THEME: "bible_app_color_theme",
   HAPTICS_ENABLED: "bible_haptics_enabled",
+  LAST_SEEN_APP_VERSION: "bible_last_seen_app_version",
   LAST_ROUTE: "bible_last_route",
   LAST_ROUTE_PARAMS: "bible_last_route_params",
   APP_CLEARED: "bible_app_cleared",

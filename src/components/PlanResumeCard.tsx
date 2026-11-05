@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { usePlanResume } from "../hooks/usePlanResume";
 import { useReaderSettings } from "../hooks/useReaderSettings";
@@ -11,8 +11,22 @@ let isDismissedThisSession = false;
 
 export const PlanResumeCard = React.memo(() => {
   const { ms, DESIGN } = useResponsive();
-  const { colors } = useTheme();
-  const { fontSizeMultiplier } = useReaderSettings();
+  const { colors: themeColors } = useTheme();
+  const { fontSizeMultiplier, readerColors, readerTheme } = useReaderSettings();
+  const colors = useMemo(
+    () =>
+      readerTheme === "sepia"
+        ? {
+            ...themeColors,
+            primary: readerColors.primary,
+            onPrimary: readerColors.onPrimary,
+            onSurface: readerColors.onSurface,
+            textMuted: readerColors.secondary,
+            border: readerColors.secondaryVariant,
+          }
+        : themeColors,
+    [readerTheme, readerColors, themeColors],
+  );
   const { resume, start } = usePlanResume();
   const [isDismissed, setIsDismissed] = useState(isDismissedThisSession);
 
