@@ -1,7 +1,7 @@
 # E2E do app (Expo Go + adb)
 
 Roteiro gravado para testar o app sempre do mesmo jeito. A parte automática está em
-`e2e/run.sh` (usa `e2e/ui.py` para ler a tela via `uiautomator` e tocar por texto).
+`scripts/e2e-run.sh` (usa `scripts/e2e-ui.py` para ler a tela via `uiautomator` e tocar por texto).
 A parte manual (fluxos longos com desenho) está descrita abaixo, com as coordenadas que funcionaram.
 
 ## Como rodar
@@ -9,11 +9,11 @@ A parte manual (fluxos longos com desenho) está descrita abaixo, com as coorden
 ```bash
 adb devices                       # aparelho conectado (adb wifi ou USB)
 curl -s localhost:8081/status     # Metro rodando (packager-status:running)
-bash e2e/run.sh                   # roda tudo, na ordem abaixo
-bash e2e/run.sh notes plan        # roda só algumas seções
+bash scripts/e2e-run.sh                   # roda tudo, na ordem abaixo
+bash scripts/e2e-run.sh notes plan        # roda só algumas seções
 ```
 
-- Capturas ficam em `e2e/out/` (ignorada pelo git). Falhas geram `fail-*.png`.
+- Capturas ficam em `scripts/e2e-out/` (ignorada pelo git). Falhas geram `fail-*.png`.
 - O script começa recarregando o app (tecla R duas vezes). Depois de `npm install` o primeiro bundle demora vários minutos.
 - Antes de rodar, ligue **Não perturbar**: banners de outros apps aparecem nas capturas e cobrem botões.
 - Coordenadas em pixels reais do aparelho (1080x2340). Captura exibida a 923x2000 = multiplicar por 1,17.
@@ -44,7 +44,7 @@ bash e2e/run.sh notes plan        # roda só algumas seções
 
 ## Ordem do teste
 
-Cada passo tem o resultado esperado. A coluna **Auto** indica o que `e2e/run.sh` já confere sozinho.
+Cada passo tem o resultado esperado. A coluna **Auto** indica o que `scripts/e2e-run.sh` já confere sozinho.
 
 ### 1. Bíblia (`section_bible`) — Auto
 1. Menu lateral > Bíblia. Título "Bíblia Online", chips de versão/livro/capítulo, barra fina de progresso no topo ao rolar.
@@ -121,13 +121,13 @@ Ver o fim deste arquivo, seção **Registro**, atualizada a cada execução.
 | 9 Desenho | ok: barra com cores recentes, espessura, marcador atrás do texto |
 | 4 Pesquisar, 8 Configurações, 12-14 | não executadas nesta rodada |
 
-### 03/11/2026 — `bash e2e/run.sh` (automático)
+### 03/11/2026 — `bash scripts/e2e-run.sh` (automático)
 
 Não concluída: o `adb` perdeu a conexão com o aparelho no meio da execução ("device offline"), então os resultados dessa rodada foram descartados.
 O roteiro agora aborta com `exit 2` e a mensagem "Aparelho adb desconectado" se isso acontecer.
-Próxima execução: reconectar o aparelho, ligar Não perturbar e rodar `bash e2e/run.sh`.
+Próxima execução: reconectar o aparelho, ligar Não perturbar e rodar `bash scripts/e2e-run.sh`.
 
-### 03/11/2026 — `bash e2e/run.sh` (automático, SM-M356B por adb sem fio)
+### 03/11/2026 — `bash scripts/e2e-run.sh` (automático, SM-M356B por adb sem fio)
 
 Resultado: 27 ok, 0 falhas.
 Ajustes no roteiro: `ui()` usa `MSYS_NO_PATHCONV` também no `cat` (sem isso o Git Bash lia o arquivo errado e tudo falhava); o item **Bíblia** do menu é tocado por coordenada (a busca por texto caía em "Apoie este Projeto"); a Aparência rola o modal antes de procurar Exibição e Restaurar tudo.
@@ -137,6 +137,6 @@ Achado: no layout horizontal da comparação os chips NAA/ESV cobrem o início d
 
 ### 04/11/2026 — Coleções, referência na busca, estatísticas e widget (não executada)
 
-Implementado sem rodar no aparelho: seções `collections` e `stats` e o atalho de referência em `search` foram adicionados ao `e2e/run.sh`, mas ainda não executados.
+Implementado sem rodar no aparelho: seções `collections` e `stats` e o atalho de referência em `search` foram adicionados ao `scripts/e2e-run.sh`, mas ainda não executados.
 Manual pendente: criar coleção pelo ícone de marcador na leitura e conferir no menu Coleções; abrir um versículo da coleção; conferir os números em Estatísticas após marcar um capítulo no plano.
 O widget só existe depois de `npx expo prebuild --platform android` e novo build nativo (não funciona no Expo Go): adicionar os três widgets (Continuar leitura, Plano de leitura, Estatísticas) na tela inicial, conferir que mostram texto e tocar em cada um para abrir o destino.

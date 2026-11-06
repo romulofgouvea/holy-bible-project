@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# E2E visual/semântico do app (Expo Go via adb). Uso: bash e2e/run.sh [secao...]
+# E2E visual/semântico do app (Expo Go via adb). Uso: bash scripts/e2e-run.sh [secao...]
 # Seções: bible appearance picker search studies notes plan config draw collections stats
 # Requer: adb com um aparelho conectado, Metro rodando e o app aberto no Expo Go.
 # Dica: ligue "Não perturbe" antes, para banners de outros apps não entrarem nas capturas.
 
 set -u
 cd "$(dirname "$0")/.."
-OUT="e2e/out"
+OUT="scripts/e2e-out"
 mkdir -p "$OUT"
 
 MENU="105 187"
@@ -36,12 +36,12 @@ wait_a_bit() { sleep "${1:-1.5}"; }
 tap_text() {
   require_device
   local point
-  point=$(ui | python e2e/ui.py find "$1" "${2:-0}") || return 1
+  point=$(ui | python scripts/e2e-ui.py find "$1" "${2:-0}") || return 1
   tap_pair "$point"
   wait_a_bit "${3:-1.5}"
 }
 
-has_text() { ui | python e2e/ui.py has "$1" >/dev/null 2>&1; }
+has_text() { ui | python scripts/e2e-ui.py has "$1" >/dev/null 2>&1; }
 
 check() {
   require_device

@@ -19,8 +19,8 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           TAG=${REF_NAME#v}
-          CONF=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          CARGO=$(grep -m1 '^version = ' src-tauri/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          CONF=$(node -p "require('./desktop/tauri.conf.json').version")
+          CARGO=$(grep -m1 '^version = ' desktop/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
           fail=0
           for pair in "tauri.conf.json:$CONF" "Cargo.toml:$CARGO"; do
             name=${pair%%:*}; ver=${pair#*:}
@@ -83,7 +83,7 @@ jobs:
       - name: Cache do Cargo
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "./src-tauri -> target"
+          workspaces: "./desktop -> target"
 
       - name: Instalar dependências do frontend
         run: npm ci
@@ -107,6 +107,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          mkdir -p dist
-          cp src-tauri/target/release/holy-bible.exe "dist/Biblia Online (Portable).exe"
-          gh release upload "$REF_NAME" "dist/Biblia Online (Portable).exe" --clobber
+          mkdir -p local-builds/outputs
+          cp desktop/target/release/holy-bible.exe "local-builds/outputs/Biblia Online (Portable).exe"
+          gh release upload "$REF_NAME" "local-builds/outputs/Biblia Online (Portable).exe" --clobber

@@ -4,6 +4,12 @@ const DISABLE_CONTEXT_MENU: &str =
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
+                let _ = window.set_icon(tauri::include_image!("icons/128x128@2x.png"));
+            }
+            Ok(())
+        })
         .on_page_load(|webview, _payload| {
             let _ = webview.eval(DISABLE_CONTEXT_MENU);
         })

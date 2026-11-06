@@ -60,4 +60,4 @@ scratch/*
 
 .env
 # e2e
-e2e/out/
+scripts/e2e-out/

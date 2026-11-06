@@ -13,9 +13,9 @@
     "lint": "expo lint",
     "web:export": "expo export -p web --output-dir dist",
     "tauri": "tauri",
-    "windows:dev": "tauri dev",
-    "windows:build": "tauri build",
-    "windows:portable": "node scripts/build-portable.mjs"
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:portable": "node scripts/build-portable.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/lora": "^0.4.2",

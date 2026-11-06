@@ -137,7 +137,7 @@ container: {}         // empty style objects
 
 ## E2E
 
-`e2e.md` lista todas as telas do app e a ordem do teste ponta a ponta no aparelho (Expo Go + adb). A parte automática roda com `bash e2e/run.sh [secao...]`. Ao mudar uma tela ou fluxo, atualize `e2e.md` e `e2e/run.sh`, e registre o resultado da execução no fim de `e2e.md`.
+`e2e.md` lista todas as telas do app e a ordem do teste ponta a ponta no aparelho (Expo Go + adb). A parte automática roda com `bash scripts/e2e-run.sh [secao...]`. Ao mudar uma tela ou fluxo, atualize `e2e.md` e `scripts/e2e-run.sh`, e registre o resultado da execução no fim de `e2e.md`.
 
 ## Pre-commit checklist
 
