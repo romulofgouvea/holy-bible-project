@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
@@ -23,6 +24,7 @@ const APP_JSON_PATH = join(PROJECT_PATH, "app.json");
 const KEYSTORE_FILE = "keystore.jks";
 const KEYSTORE_PATH = join(LOCAL_BUILDS_PATH, KEYSTORE_FILE);
 const CREDENTIALS_PATH = join(LOCAL_BUILDS_PATH, "credentials.md");
+const PREBUILD_HASH_PATH = join(LOCAL_BUILDS_PATH, "prebuild-hash.json");
 const STATE_PATH = join(LOCAL_BUILDS_PATH, "deploy-state.json");
 const OUTPUT_PATH = join(LOCAL_BUILDS_PATH, "outputs");
 const AAB_PATH = join(ANDROID_PATH, "app", "build", "outputs", "bundle", "release", "app-release.aab");
@@ -93,8 +95,28 @@ function stopGradle() {
   run(GRADLEW, ["--stop"], { cwd: ANDROID_PATH, stdio: "ignore" });
 }
 
+function computePrebuildHash() {
+  const { version, android, ...expoConfig } = readJson(APP_JSON_PATH).expo;
+  const { versionCode, ...androidConfig } = android ?? {};
+  const lockPath = join(PROJECT_PATH, "package-lock.json");
+  const lock = existsSync(lockPath) ? readFileSync(lockPath) : "";
+  return createHash("sha256")
+    .update(JSON.stringify({ expoConfig, androidConfig }))
+    .update(lock)
+    .digest("hex");
+}
+
+function shouldCleanPrebuild(hash) {
+  if (!existsSync(join(ANDROID_PATH, "gradlew"))) return true;
+  if (!existsSync(PREBUILD_HASH_PATH)) return true;
+  return readJson(PREBUILD_HASH_PATH).hash !== hash;
+}
+
 function prebuild() {
-  const result = run(NPX, ["expo", "prebuild", "--clean"], {
+  const hash = computePrebuildHash();
+  const clean = shouldCleanPrebuild(hash);
+  console.log(clean ? "  Config nativa mudou: prebuild --clean" : "  Config nativa igual: prebuild incremental");
+  const result = run(NPX, ["expo", "prebuild", ...(clean ? ["--clean"] : [])], {
     cwd: PROJECT_PATH,
     env: { ...process.env, CI: "1", EXPO_NO_GIT_STATUS: "1" },
     encoding: "utf8",
@@ -103,23 +125,43 @@ function prebuild() {
   if (result.status !== 0) {
     fail(`Erro no prebuild.\n${result.stdout ?? ""}${result.stderr ?? ""}`);
   }
+  writeFileSync(PREBUILD_HASH_PATH, JSON.stringify({ hash }));
+}
+
+function patchReleaseSigning() {
+  const gradlePath = join(ANDROID_PATH, "app", "build.gradle");
+  const original = readFileSync(gradlePath, "utf8");
+  if (original.includes("signingConfigs.release")) return;
+  const releaseConfig = `signingConfigs {
+        release {
+            storeFile file(System.getenv('HB_STORE_FILE'))
+            storePassword System.getenv('HB_STORE_PASSWORD')
+            keyAlias System.getenv('HB_KEY_ALIAS')
+            keyPassword System.getenv('HB_KEY_PASSWORD')
+        }
+`;
+  const patched = original
+    .replace("signingConfigs {\n", releaseConfig)
+    .replace(/(release \{[^}]*?)signingConfig signingConfigs\.debug/, "$1signingConfig signingConfigs.release");
+  if (!patched.includes("signingConfigs.release")) fail("Nao foi possivel configurar a assinatura release.");
+  writeFileSync(gradlePath, patched);
 }
 
 function compile(credentials) {
   if (!IS_WINDOWS) chmodSync(join(ANDROID_PATH, "gradlew"), 0o755);
   const result = run(
     GRADLEW,
-    ["bundleRelease", "--quiet", quoteArg(`-Dorg.gradle.jvmargs=${GRADLE_JVM_ARGS}`)],
+    ["bundleRelease", "--quiet", "--build-cache", "-PreactNativeArchitectures=armeabi-v7a,arm64-v8a", quoteArg(`-Dorg.gradle.jvmargs=${GRADLE_JVM_ARGS}`)],
     {
       cwd: ANDROID_PATH,
       stdio: "inherit",
       env: {
         ...process.env,
         ANDROID_HOME: resolveSdkPath(),
-        "ORG_GRADLE_PROJECT_android.injected.signing.store.file": join(ANDROID_PATH, "app", KEYSTORE_FILE),
-        "ORG_GRADLE_PROJECT_android.injected.signing.store.password": credentials.storePassword,
-        "ORG_GRADLE_PROJECT_android.injected.signing.key.alias": credentials.keyAlias,
-        "ORG_GRADLE_PROJECT_android.injected.signing.key.password": credentials.keyPassword,
+        HB_STORE_FILE: join(ANDROID_PATH, "app", KEYSTORE_FILE),
+        HB_STORE_PASSWORD: credentials.storePassword,
+        HB_KEY_ALIAS: credentials.keyAlias,
+        HB_KEY_PASSWORD: credentials.keyPassword,
       },
     },
   );
@@ -176,6 +218,7 @@ stopGradle();
 prebuild();
 mkdirSync(join(ANDROID_PATH, "app"), { recursive: true });
 copyFileSync(KEYSTORE_PATH, join(ANDROID_PATH, "app", KEYSTORE_FILE));
+patchReleaseSigning();
 syncLocalProperties();
 
 showStep(2, "Compilando AAB...");

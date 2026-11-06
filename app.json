@@ -4,7 +4,11 @@
     "slug": "holy-bible",
     "version": "1.6.2",
     "orientation": "default",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "icon": "./assets/images/icon.png",
     "scheme": "holybible",
     "userInterfaceStyle": "automatic",
